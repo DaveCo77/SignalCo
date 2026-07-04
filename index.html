@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>SignalCo Master Config</title>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+</head>
+<body class="bg-slate-900 text-slate-200 p-10 font-sans" id="app">
+
+    <div class="max-w-4xl mx-auto">
+        <h1 class="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-emerald-400 mb-8 tracking-tight">
+            SIGNAL-CO // MASTER CONFIG
+        </h1>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <!-- TERMINAL MANAGEMENT -->
+            <div class="bg-slate-800/50 backdrop-blur-md border border-slate-700 p-8 rounded-2xl shadow-2xl h-fit">
+                <div class="flex justify-between items-center mb-6 border-b border-slate-700 pb-2">
+                    <h2 class="text-xl font-bold">Endpoint Assignment</h2>
+                    <button @click="addTerminal" class="text-sm bg-blue-600 hover:bg-blue-500 text-white font-bold py-1 px-3 rounded transition-colors">
+                        + Add Terminal
+                    </button>
+                </div>
+                
+                <div class="space-y-4 max-h-[60vh] overflow-y-auto pr-2">
+                    <div v-for="(name, id) in config.terminals" :key="id" class="flex items-end gap-4">
+                        <div class="flex-1">
+                            <label class="block text-xs font-mono text-slate-400 mb-1">Terminal {{ id }} (?t={{ id }})</label>
+                            <input type="text" v-model="config.terminals[id]" @input="updateConfig" 
+                                   class="w-full bg-slate-900 border border-slate-600 rounded-lg px-4 py-3 focus:outline-none focus:border-blue-500 transition-colors">
+                        </div>
+                        <button @click="removeTerminal(id)" class="bg-red-900/50 hover:bg-red-600 border border-red-700 text-white p-3 rounded-lg transition-colors h-[50px] aspect-square flex items-center justify-center" title="Delete Endpoint">
+                            ✕
+                        </button>
+                    </div>
+                    
+                    <div v-if="!config.terminals || Object.keys(config.terminals).length === 0" class="text-slate-500 text-center py-4 font-mono text-sm">
+                        No active endpoints. Add a terminal to begin.
+                    </div>
+                </div>
+            </div>
+
+            <!-- GLOBAL SIGNALS & CHAOS -->
+            <div class="bg-slate-800/50 backdrop-blur-md border border-slate-700 p-8 rounded-2xl shadow-2xl h-fit space-y-8">
+                
+                <!-- SHOW CALL SIGNALS -->
+                <div>
+                    <h2 class="text-xl font-bold mb-4 border-b border-slate-700 pb-2 text-emerald-400">Master Show Signals</h2>
+                    <div class="grid grid-cols-3 gap-3">
+                        <button @click="setMasterSignal('clear')" :class="config.master_signal === 'clear' ? 'bg-slate-600 ring-2 ring-slate-400' : 'bg-slate-900 border border-slate-700 hover:bg-slate-700'" class="py-4 rounded-lg font-bold transition-all">
+                            CLEAR
+                        </button>
+                        <button @click="setMasterSignal('standby')" :class="config.master_signal === 'standby' ? 'bg-yellow-600 ring-2 ring-yellow-400 animate-pulse' : 'bg-slate-900 border border-slate-700 hover:bg-yellow-900/50 text-yellow-500'" class="py-4 rounded-lg font-bold transition-all">
+                            STANDBY
+                        </button>
+                        <button @click="setMasterSignal('go')" :class="config.master_signal === 'go' ? 'bg-emerald-600 ring-2 ring-emerald-400 shadow-[0_0_15px_rgba(16,185,129,0.5)]' : 'bg-slate-900 border border-slate-700 hover:bg-emerald-900/50 text-emerald-500'" class="py-4 rounded-lg font-bold transition-all">
+                            SHOW GO
+                        </button>
+                    </div>
+                </div>
+
+                <!-- ATMOSPHERIC CONTROLS -->
+                <div>
+                    <h2 class="text-xl font-bold mb-4 border-b border-slate-700 pb-2 text-red-400">Override Controls</h2>
+                    <div class="space-y-4">
+                        <label class="flex items-center justify-between cursor-pointer p-4 bg-slate-900 rounded-lg border border-slate-700 hover:border-orange-500 transition-colors shadow-[inset_0_0_20px_rgba(220,38,38,0.1)]">
+                            <div>
+                                <span class="font-bold text-orange-400 text-lg block">Atmosphere: Breathe Red</span>
+                                <span class="text-xs text-slate-500">Slowly pulses a dark red vignette site-wide</span>
+                            </div>
+                            <input type="checkbox" v-model="config.breathe_red" @change="updateConfig" class="w-6 h-6 accent-orange-600">
+                        </label>
+                        
+                        <label class="flex items-center justify-between cursor-pointer p-4 bg-slate-900 rounded-lg border border-red-900 hover:border-red-500 transition-colors">
+                            <span class="font-black text-red-500 text-lg tracking-wider">TRIGGER SITE EVACUATION</span>
+                            <input type="checkbox" v-model="config.force_flash" @change="updateConfig" class="w-6 h-6 accent-red-600">
+                        </label>
+                    </div>
+                </div>
+
+                <button @click="clearMessages" class="w-full bg-red-600/10 text-red-500 border border-red-600/30 hover:bg-red-600 hover:text-white font-bold py-4 px-4 rounded-lg transition-all mt-4">
+                    WIPE ALL TRANSMISSIONS
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyDuNNjKq8RLsjTJ8qhrvTe197V8KiOPdiU",
+            authDomain: "daveco-messaging-service.firebaseapp.com",
+            databaseURL: "https://daveco-messaging-service-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "daveco-messaging-service",
+            storageBucket: "daveco-messaging-service.firebasestorage.app",
+            messagingSenderId: "1061915230686",
+            appId: "1:1061915230686:web:d2610247ac222b4c4cdd4f",
+            measurementId: "G-HX16HEY6D5"
+        };
+        
+        if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+
+        const { createApp, ref, onMounted } = Vue;
+
+        createApp({
+            setup() {
+                // Initialize with dynamic structure
+                const config = ref({ 
+                    terminals: {}, 
+                    force_flash: false, 
+                    breathe_red: false,
+                    master_signal: 'clear'
+                });
+
+                onMounted(() => {
+                    db.ref('daveco_config').on('value', snap => {
+                        if (snap.val()) {
+                            config.value = { ...config.value, ...snap.val() };
+                            // Ensure terminals object exists if database is wiped
+                            if (!config.value.terminals) config.value.terminals = {};
+                        }
+                    });
+                });
+
+                // Using .set() instead of .update() so deleted terminals actually vanish from the database
+                const updateConfig = () => {
+                    db.ref('daveco_config').set(config.value);
+                };
+
+                const addTerminal = () => {
+                    const currentIds = Object.keys(config.value.terminals).map(Number);
+                    const nextId = currentIds.length > 0 ? Math.max(...currentIds) + 1 : 1;
+                    config.value.terminals[nextId] = `Terminal ${nextId}`;
+                    updateConfig();
+                };
+
+                const removeTerminal = (id) => {
+                    delete config.value.terminals[id];
+                    updateConfig();
+                };
+
+                const setMasterSignal = (signal) => {
+                    config.value.master_signal = signal;
+                    updateConfig();
+                };
+
+                const clearMessages = () => {
+                    if(confirm("Are you sure you want to permanently wipe the site-wide chat history?")) {
+                        db.ref('messages').remove();
+                    }
+                };
+
+                return { config, updateConfig, addTerminal, removeTerminal, setMasterSignal, clearMessages }
+            }
+        }).mount('#app')
+    </script>
+</body>
+</html>
