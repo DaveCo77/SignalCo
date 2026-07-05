@@ -40,8 +40,16 @@
                 <span class="text-white">Signal</span><span style="color: var(--marker);">Co</span> // Master Control
             </h1>
         </div>
-        <div class="text-xs font-mono text-slate-500 bg-black px-4 py-2 rounded border border-white/10">
-            ENV: PRODUCTION | CLOUD DB SYNC ACTIVE
+        <div class="flex items-center gap-4">
+            <span v-if="tier === 'free'" class="text-[10px] text-red-400 font-bold uppercase tracking-widest border border-red-900/50 bg-red-950/30 px-3 py-1.5 rounded">
+                Free Tier Active
+            </span>
+            <span v-if="tier === 'pro'" class="text-[10px] text-emerald-400 font-bold uppercase tracking-widest border border-emerald-900/50 bg-emerald-950/30 px-3 py-1.5 rounded">
+                Pro Tier Active
+            </span>
+            <div class="text-xs font-mono text-slate-500 bg-black px-4 py-2 rounded border border-white/10">
+                ENV: PRODUCTION | CLOUD DB SYNC ACTIVE
+            </div>
         </div>
     </header>
 
@@ -96,18 +104,27 @@
             <section class="panel-raised p-6 rounded-xl shadow-xl flex-1 flex flex-col min-h-[300px]">
                 <div class="flex justify-between items-center mb-4 border-b border-white/10 pb-2">
                     <h2 class="text-sm font-bold text-slate-400 uppercase tracking-widest">Active Endpoints</h2>
-                    <button @click="addTerminal" style="background-color: var(--marker);" class="text-xs text-white font-bold py-1 px-3 rounded hover:opacity-80 transition-opacity">
-                        + Add Terminal
-                    </button>
+                    <div class="flex items-center gap-3">
+                        <span v-if="tier === 'free'" class="text-[10px] text-slate-400 uppercase tracking-widest">Max 1 Terminal</span>
+                        <button @click="addTerminal" 
+                                :disabled="tier === 'free' && Object.keys(config.terminals || {}).length >= 1"
+                                :class="(tier === 'free' && Object.keys(config.terminals || {}).length >= 1) ? 'bg-slate-800 text-slate-600 cursor-not-allowed border border-slate-700' : 'bg-[#8b55d6] text-white hover:opacity-80'"
+                                class="text-xs font-bold py-1 px-3 rounded transition-all">
+                            + Add Terminal
+                        </button>
+                    </div>
                 </div>
                 
                 <div class="space-y-3 overflow-y-auto flex-1 pr-2">
                     <div v-for="(name, id) in config.terminals" :key="id" class="flex items-center gap-3 bg-black p-3 rounded border border-white/5">
                         <div class="bg-slate-800 text-xs font-mono px-2 py-1 rounded text-slate-400 border border-white/10">ID {{ id }}</div>
-                        <input type="text" v-model="config.terminals[id]" @input="updateConfig" placeholder="Endpoint Name"
-                               class="flex-1 bg-transparent border-b border-slate-700 px-2 py-1 text-sm focus:outline-none focus:border-blue-500 transition-colors">
                         
-                        <!-- COPY URL LINK BUTTON -->
+                        <!-- Input is locked to disabled on Free Tier -->
+                        <input type="text" v-model="config.terminals[id]" @input="updateConfig" placeholder="Endpoint Name"
+                               :disabled="tier === 'free'"
+                               :class="tier === 'free' ? 'text-slate-500 cursor-not-allowed opacity-50' : 'text-white focus:border-blue-500'"
+                               class="flex-1 bg-transparent border-b border-slate-700 px-2 py-1 text-sm focus:outline-none transition-colors">
+                        
                         <button @click="copyTerminalUrl(id)" class="text-slate-400 hover:text-white bg-slate-800 p-2 rounded border border-white/10 transition-colors flex items-center justify-center" title="Copy Terminal URL">
                             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"></path></svg>
                         </button>
@@ -149,7 +166,6 @@
 
             <!-- CHAT FEED -->
             <div class="flex-1 overflow-y-auto p-6 space-y-4 bg-[#050505]" id="chatContainer">
-                <!-- Live Pinned Announcement Display inside Admin Matrix too -->
                 <div v-if="config.pinned_message" class="bg-purple-950/40 border border-purple-500/50 rounded p-3 text-xs text-purple-200 font-mono tracking-wide shadow-md flex justify-between items-center">
                     <span>📌 PINNED: {{ config.pinned_message }}</span>
                 </div>
@@ -220,6 +236,8 @@
                 
                 const urlParams = new URLSearchParams(window.location.search);
                 const eventId = ref(urlParams.get('event') || 'demo_sandbox');
+                // Capture the tier parameter. Default to 'free' to protect the software.
+                const tier = ref(urlParams.get('tier') || 'free'); 
                 
                 const configPath = `events/${eventId.value}/config`;
                 const messagesPath = `events/${eventId.value}/messages`;
@@ -277,9 +295,18 @@
                 };
 
                 const addTerminal = () => {
-                    const currentIds = Object.keys(config.value.terminals).map(Number);
+                    const currentIds = Object.keys(config.value.terminals || {}).map(Number);
+                    
+                    // Enforce the Free Tier limitation
+                    if (tier.value === 'free' && currentIds.length >= 1) {
+                        return;
+                    }
+                    
                     const nextId = currentIds.length > 0 ? Math.max(...currentIds) + 1 : 1;
-                    config.value.terminals[nextId] = `Terminal ${nextId}`;
+                    if (!config.value.terminals) config.value.terminals = {};
+                    
+                    // Force the default name if on the free tier
+                    config.value.terminals[nextId] = tier.value === 'free' ? `Terminal ${nextId}` : `Terminal ${nextId}`;
                     updateConfig();
                 };
 
@@ -316,7 +343,7 @@
                     }
                 };
 
-                return { config, adminName, eventId, updateConfig, copyTerminalUrl, addTerminal, removeTerminal, setMasterSignal, clearPinnedMessage, draftMessage, isUrgent, messages, sendMessage, clearMessages }
+                return { config, adminName, eventId, tier, updateConfig, copyTerminalUrl, addTerminal, removeTerminal, setMasterSignal, clearPinnedMessage, draftMessage, isUrgent, messages, sendMessage, clearMessages }
             }
         }).mount('#app')
     </script>
