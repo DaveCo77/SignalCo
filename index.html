@@ -271,18 +271,21 @@
                 // FIXED: Now writes to the isolated SaaS instance, not the root!
                 const updateConfig = () => db.ref(configPath).set(config.value);
 
-                // DYNAMIC CLIPBOARD URL GENERATOR
-                const copyTerminalUrl = (id) => {
-                    const currentUrl = window.location.href;
-                    const basePath = currentUrl.substring(0, currentUrl.lastIndexOf('/'));
-                    const fullTerminalPath = `${basePath}/terminal.html?event=${eventId.value}&t=${id}`;
-                    
-                    navigator.clipboard.writeText(fullTerminalPath).then(() => {
-                        alert(`Copied path for Terminal ${id} straight to clipboard!`);
-                    }).catch(err => {
-                        console.error('Could not copy string: ', err);
-                    });
-                };
+// DYNAMIC CLIPBOARD URL GENERATOR (BULLETPROOF VERSION)
+const copyTerminalUrl = (id) => {
+    // This native JS tool perfectly resolves the folder path, ignoring "index.html" entirely
+    const url = new URL('terminal.html', window.location.href);
+    
+    // Explicitly set our required SaaS routing parameters
+    url.searchParams.set('event', eventId.value);
+    url.searchParams.set('t', id);
+    
+    navigator.clipboard.writeText(url.href).then(() => {
+        alert(`Copied path for Terminal ${id} straight to clipboard!\n\nLink: ${url.href}`);
+    }).catch(err => {
+        console.error('Could not copy string: ', err);
+    });
+};
 
                 const addTerminal = () => {
                     const currentIds = Object.keys(config.value.terminals).map(Number);
