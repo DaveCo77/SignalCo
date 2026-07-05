@@ -8,13 +8,6 @@
     <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
     <style>
-        /* Site Evacuation Strobe */
-        @keyframes strobe {
-            0%, 49% { background-color: #ef4444; color: white; }
-            50%, 100% { background-color: #000000; color: #ef4444; }
-        }
-        .flash-active { animation: strobe 0.5s infinite; border: 10px solid #ef4444; }
-        
         /* Master Signals */
         .signal-standby { background-color: #1a1400 !important; box-shadow: inset 0 0 100px rgba(234, 179, 8, 0.2); border: 2px solid #eab308; }
         .signal-go { background-color: #021a0c !important; box-shadow: inset 0 0 150px rgba(16, 185, 129, 0.3); border: 2px solid #10b981; }
@@ -40,10 +33,9 @@
 </head>
 <body id="app" 
       :class="{
-          'flash-active': isFlashing, 
-          'breathe-active': isBreathing && !isFlashing && masterSignal === 'clear',
-          'signal-standby': masterSignal === 'standby' && !isFlashing,
-          'signal-go': masterSignal === 'go' && !isFlashing
+          'breathe-active': isBreathing && masterSignal === 'clear',
+          'signal-standby': masterSignal === 'standby',
+          'signal-go': masterSignal === 'go'
       }" 
       class="bg-slate-950 h-screen flex flex-col transition-all duration-300">
 
@@ -58,7 +50,6 @@
                 <!-- Visual Signal Indicator -->
                 <div v-if="masterSignal === 'standby'" class="px-4 py-1 rounded bg-yellow-500/20 text-yellow-400 border border-yellow-500 font-bold animate-pulse">STANDBY</div>
                 <div v-if="masterSignal === 'go'" class="px-4 py-1 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500 font-bold">SHOW GO</div>
-                <div v-if="isFlashing" class="px-4 py-1 rounded bg-red-500 text-white font-black text-xl tracking-widest uppercase">EVACUATE</div>
                 
                 <div class="flex items-center space-x-3">
                     <span class="text-slate-400 text-sm font-mono">ID: T-{{ terminalId }}</span>
@@ -67,6 +58,12 @@
             </div>
         </div>
     </header>
+
+    <!-- STREAMING PINNED OVERLAY BANNER -->
+    <div v-if="pinnedMessage" class="bg-purple-900/90 backdrop-blur border-b border-purple-500 text-purple-100 font-mono text-center p-3 text-sm font-bold tracking-wider shadow-lg flex justify-center items-center gap-2 z-20">
+        <svg class="w-4 h-4 animate-pulse text-purple-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path></svg>
+        GLOBAL BROADCAST: {{ pinnedMessage }}
+    </div>
 
     <main class="flex-1 overflow-y-auto p-6 relative z-10" id="chatContainer">
         <div class="max-w-4xl mx-auto space-y-4">
@@ -93,17 +90,17 @@
 
     <footer class="bg-slate-900/90 backdrop-blur-sm border-t border-slate-800 p-6 z-10 relative">
         <div class="max-w-4xl mx-auto flex flex-col space-y-4">
-            <label class="flex items-center space-x-2 cursor-pointer self-end text-sm text-slate-400 hover:text-red-400 transition-colors">
-                <input type="checkbox" v-model="isUrgent" class="accent-red-600 w-4 h-4">
+            <label class="flex items-center space-x-2 cursor-pointer self-end text-sm text-slate-400 hover:text-red-400 transition-colors" :class="{'opacity-40 cursor-not-allowed': isLocked}">
+                <input type="checkbox" v-model="isUrgent" :disabled="isLocked" class="accent-red-600 w-4 h-4 disabled:cursor-not-allowed">
                 <span>Flag as Priority</span>
             </label>
             <div class="flex space-x-4">
-                <input type="text" v-model="draftMessage" @keyup.enter="sendMessage" :disabled="isFlashing"
-                       placeholder="Type transmission..." 
-                       class="flex-1 bg-slate-950 border border-slate-700 rounded-xl px-6 py-4 text-slate-200 focus:outline-none focus:border-blue-500 transition-colors focus:ring-1 focus:ring-blue-500 shadow-inner disabled:opacity-50">
-                <button @click="sendMessage" :disabled="isFlashing"
-                        :class="isUrgent ? 'bg-red-700 hover:bg-red-600 shadow-[0_0_15px_rgba(220,38,38,0.4)]' : 'bg-blue-600 hover:bg-blue-500 shadow-[0_0_15px_rgba(37,99,235,0.3)]'"
-                        class="text-white font-bold px-8 py-4 rounded-xl transition-all active:scale-95 disabled:opacity-50 disabled:grayscale">
+                <input type="text" v-model="draftMessage" @keyup.enter="sendMessage" :disabled="isLocked"
+                       :placeholder="isLocked ? 'TRANSMISSIONS PAUSED BY MASTER CONTROL...' : 'Type transmission...'" 
+                       class="flex-1 bg-slate-950 border border-slate-700 rounded-xl px-6 py-4 text-slate-200 focus:outline-none focus:border-blue-500 transition-colors focus:ring-1 focus:ring-blue-500 shadow-inner disabled:opacity-40 disabled:cursor-not-allowed">
+                <button @click="sendMessage" :disabled="isLocked"
+                        :class="isLocked ? 'bg-slate-800 border-slate-700 text-slate-500 cursor-not-allowed' : (isUrgent ? 'bg-red-700 hover:bg-red-600 shadow-[0_0_15px_rgba(220,38,38,0.4)]' : 'bg-blue-600 hover:bg-blue-500 shadow-[0_0_15px_rgba(37,99,235,0.3)]')"
+                        class="text-white font-bold px-8 py-4 rounded-xl transition-all active:scale-95 disabled:grayscale">
                     SEND
                 </button>
             </div>
@@ -111,16 +108,16 @@
     </footer>
 
     <script>
-const firebaseConfig = {
-  apiKey: "AIzaSyDk7ynP52uYc29OL1Swl64tt0aTOTHaE9Y",
-  authDomain: "signalco-94890.firebaseapp.com",
-  databaseURL: "https://signalco-94890-default-rtdb.asia-southeast1.firebasedatabase.app",
-  projectId: "signalco-94890",
-  storageBucket: "signalco-94890.firebasestorage.app",
-  messagingSenderId: "957105280763",
-  appId: "1:957105280763:web:7df0b037c3c51f32ae025e",
-  measurementId: "G-WSXF0KGPZ2"
-};
+        const firebaseConfig = {
+            apiKey: "AIzaSyDk7ynP52uYc29OL1Swl64tt0aTOTHaE9Y",
+            authDomain: "signalco-94890.firebaseapp.com",
+            databaseURL: "https://signalco-94890-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "signalco-94890",
+            storageBucket: "signalco-94890.firebasestorage.app",
+            messagingSenderId: "957105280763",
+            appId: "1:957105280763:web:7df0b037c3c51f32ae025e",
+            measurementId: "G-WSXF0KGPZ2"
+        };
         
         if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
@@ -133,9 +130,11 @@ const firebaseConfig = {
                 const terminalId = ref(urlParams.get('t') || '1');
                 
                 const myName = ref('Connecting...');
-                const isFlashing = ref(false);
                 const isBreathing = ref(false);
                 const masterSignal = ref('clear');
+                const isLocked = ref(false);
+                const pinnedMessage = ref('');
+                
                 const draftMessage = ref('');
                 const isUrgent = ref(false);
                 const messages = ref([]);
@@ -153,16 +152,16 @@ const firebaseConfig = {
                     db.ref('daveco_config').on('value', snap => {
                         const data = snap.val();
                         if (data) {
-                            // Safely pull from the new dynamic terminals dictionary
                             if (data.terminals && data.terminals[terminalId.value]) {
                                 myName.value = data.terminals[terminalId.value];
                             } else {
                                 myName.value = `Unassigned Terminal (${terminalId.value})`;
                             }
                             
-                            isFlashing.value = data.force_flash;
-                            isBreathing.value = data.breathe_red;
+                            isBreathing.value = data.breathe_red || false;
                             masterSignal.value = data.master_signal || 'clear';
+                            isLocked.value = data.chat_locked || false;
+                            pinnedMessage.value = data.pinned_message || '';
                         }
                     });
 
@@ -187,7 +186,7 @@ const firebaseConfig = {
                 });
 
                 const sendMessage = () => {
-                    if (!draftMessage.value.trim() || isFlashing.value) return;
+                    if (!draftMessage.value.trim() || isLocked.value) return;
                     
                     db.ref('messages').push({
                         sender: myName.value,
@@ -200,7 +199,7 @@ const firebaseConfig = {
                     isUrgent.value = false;
                 };
 
-                return { terminalId, myName, isFlashing, isBreathing, masterSignal, draftMessage, isUrgent, messages, sendMessage }
+                return { terminalId, myName, isBreathing, masterSignal, draftMessage, isUrgent, messages, sendMessage, isLocked, pinnedMessage }
             }
         }).mount('#app')
     </script>
