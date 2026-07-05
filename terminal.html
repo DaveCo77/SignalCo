@@ -119,7 +119,8 @@
         </div>
     </footer>
 
-    <script>
+<script>
+        // INSERT YOUR SIGNALCO-94890 FIREBASE CONFIG HERE
         const firebaseConfig = {
             apiKey: "AIzaSyDk7ynP52uYc29OL1Swl64tt0aTOTHaE9Y",
             authDomain: "signalco-94890.firebaseapp.com",
@@ -138,8 +139,14 @@
 
         createApp({
             setup() {
+                // SaaS Routing: Grab Event UUID and Terminal ID
                 const urlParams = new URLSearchParams(window.location.search);
-                const terminalId = ref(urlParams.get('t') || '0'); // Fallback to 0 if none provided
+                const eventId = ref(urlParams.get('event') || 'demo_sandbox');
+                const terminalId = ref(urlParams.get('t') || '0');
+                
+                // Database Paths based on Event UUID
+                const configPath = `events/${eventId.value}/config`;
+                const messagesPath = `events/${eventId.value}/messages`;
                 
                 const myName = ref('Connecting...');
                 const isBreathing = ref(false);
@@ -161,7 +168,7 @@
                 };
 
                 onMounted(() => {
-                    db.ref('daveco_config').on('value', snap => {
+                    db.ref(configPath).on('value', snap => {
                         const data = snap.val();
                         if (data) {
                             if (data.terminals && data.terminals[terminalId.value]) {
@@ -177,7 +184,7 @@
                         }
                     });
 
-                    db.ref('messages').on('value', snap => {
+                    db.ref(messagesPath).on('value', snap => {
                         const data = snap.val();
                         if (data) {
                             const msgArray = Object.values(data).sort((a, b) => a.timestamp - b.timestamp);
@@ -200,7 +207,7 @@
                 const sendMessage = () => {
                     if (!draftMessage.value.trim() || isLocked.value) return;
                     
-                    db.ref('messages').push({
+                    db.ref(messagesPath).push({
                         sender: myName.value,
                         text: draftMessage.value,
                         timestamp: Date.now(),
@@ -211,7 +218,7 @@
                     isUrgent.value = false;
                 };
 
-                return { terminalId, myName, isBreathing, masterSignal, draftMessage, isUrgent, messages, sendMessage, isLocked, pinnedMessage }
+                return { eventId, terminalId, myName, isBreathing, masterSignal, draftMessage, isUrgent, messages, sendMessage, isLocked, pinnedMessage }
             }
         }).mount('#app')
     </script>
