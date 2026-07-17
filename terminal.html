@@ -49,18 +49,19 @@
       class="h-screen flex flex-col font-sans overflow-hidden transition-all duration-300">
     
 <!-- FREE TIER WATERMARK OVERLAY -->
-    <!-- We check if the terminal name includes 'Free' (which your Master UI forces on free tier addition) -->
-    <div v-if="myName.includes('Free')" class="fixed inset-0 pointer-events-none z-[9999] overflow-hidden flex items-center justify-center opacity-[0.03]">
+    <!-- Watermark is now securely tied to the database tier state -->
+    <div v-if="tier !== 'pro'" class="fixed inset-0 pointer-events-none z-[9999] overflow-hidden flex items-center justify-center opacity-[0.03]">
         <div class="transform -rotate-45 text-[10vw] font-black tracking-widest text-white whitespace-nowrap select-none">
             SIGNALCO LITE
         </div>
     </div>
     
-    <div v-if="myName.includes('Free')" class="fixed bottom-2 right-4 pointer-events-none z-[9999] opacity-30">
+    <div v-if="tier !== 'pro'" class="fixed bottom-2 right-4 pointer-events-none z-[9999] opacity-30">
         <span class="text-[9px] font-mono tracking-widest text-white uppercase border border-white/20 px-2 py-1 rounded bg-black">
             Unlicensed Endpoint
         </span>
     </div>
+    
     <!-- HEADER -->
     <header class="border-b px-8 py-4 flex justify-between items-center z-10 shadow-lg" style="background-color: var(--brand-panel); border-color: var(--line-strong);">
         <div class="flex items-center gap-4">
@@ -133,7 +134,6 @@
     </footer>
 
 <script>
-        // INSERT YOUR SIGNALCO-94890 FIREBASE CONFIG HERE
         const firebaseConfig = {
             apiKey: "AIzaSyDk7ynP52uYc29OL1Swl64tt0aTOTHaE9Y",
             authDomain: "signalco-94890.firebaseapp.com",
@@ -156,8 +156,10 @@
                 const urlParams = new URLSearchParams(window.location.search);
                 const eventId = ref(urlParams.get('event') || 'demo_sandbox');
                 const terminalId = ref(urlParams.get('t') || '0');
+                const tier = ref('free'); // Secure default
                 
                 // Database Paths based on Event UUID
+                const statusPath = `events/${eventId.value}/status`;
                 const configPath = `events/${eventId.value}/config`;
                 const messagesPath = `events/${eventId.value}/messages`;
                 
@@ -181,6 +183,12 @@
                 };
 
                 onMounted(() => {
+                    // LIVE STATUS LISTENER
+                    db.ref(statusPath).on('value', snap => {
+                        const statusVal = snap.val();
+                        tier.value = (statusVal === 'pro' || statusVal === 'paid') ? 'pro' : 'free';
+                    });
+
                     db.ref(configPath).on('value', snap => {
                         const data = snap.val();
                         if (data) {
@@ -231,7 +239,7 @@
                     isUrgent.value = false;
                 };
 
-                return { eventId, terminalId, myName, isBreathing, masterSignal, draftMessage, isUrgent, messages, sendMessage, isLocked, pinnedMessage }
+                return { eventId, terminalId, tier, myName, isBreathing, masterSignal, draftMessage, isUrgent, messages, sendMessage, isLocked, pinnedMessage }
             }
         }).mount('#app')
     </script>
