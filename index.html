@@ -41,11 +41,12 @@
             </h1>
         </div>
         <div class="flex items-center gap-4">
-            <span v-if="tier !== 'pro'" class="text-[10px] text-red-400 font-bold uppercase tracking-widest border border-red-900/50 bg-red-950/30 px-3 py-1.5 rounded">
-                Free Tier Active
-            </span>
+            <!-- DYNAMIC UPGRADE BADGE -->
+            <a v-if="tier !== 'pro'" href="https://buy.stripe.com/YOUR_SIGNALCO_LINK_HERE" target="_blank" class="text-[10px] text-red-400 hover:text-white font-bold uppercase tracking-widest border border-red-900/50 bg-red-950/30 hover:bg-red-900 px-3 py-1.5 rounded cursor-pointer transition-colors">
+                Free Sandbox &mdash; Upgrade to Pro
+            </a>
             <span v-if="tier === 'pro'" class="text-[10px] text-emerald-400 font-bold uppercase tracking-widest border border-emerald-900/50 bg-emerald-950/30 px-3 py-1.5 rounded">
-                Pro Tier Active
+                Pro License Active
             </span>
             <div class="text-xs font-mono text-slate-500 bg-black px-4 py-2 rounded border border-white/10">
                 ENV: PRODUCTION | CLOUD DB SYNC ACTIVE
@@ -119,7 +120,6 @@
                     <div v-for="(name, id) in config.terminals" :key="id" class="flex items-center gap-3 bg-black p-3 rounded border border-white/5">
                         <div class="bg-slate-800 text-xs font-mono px-2 py-1 rounded text-slate-400 border border-white/10">ID {{ id }}</div>
                         
-                        <!-- Input is strictly locked down if not explicitly Pro -->
                         <input type="text" v-model="config.terminals[id]" @input="updateConfig" placeholder="Endpoint Name"
                                :disabled="tier !== 'pro'"
                                :class="tier !== 'pro' ? 'text-slate-500 cursor-not-allowed opacity-50' : 'text-white focus:border-blue-500'"
@@ -247,8 +247,9 @@
                 
                 const urlParams = new URLSearchParams(window.location.search);
                 const eventId = ref(urlParams.get('event') || 'demo_sandbox');
-                const tier = ref(urlParams.get('tier') || 'free'); 
+                const tier = ref('free'); // Secure default
                 
+                const statusPath = `events/${eventId.value}/status`;
                 const configPath = `events/${eventId.value}/config`;
                 const messagesPath = `events/${eventId.value}/messages`;
                 
@@ -272,6 +273,12 @@
                 };
 
                 onMounted(() => {
+                    // LIVE STATUS LISTENER
+                    db.ref(statusPath).on('value', snap => {
+                        const statusVal = snap.val();
+                        tier.value = (statusVal === 'pro' || statusVal === 'paid') ? 'pro' : 'free';
+                    });
+
                     db.ref(configPath).on('value', snap => {
                         if (snap.val()) {
                             config.value = { ...config.value, ...snap.val() };
@@ -315,7 +322,7 @@
                     const nextId = currentIds.length > 0 ? Math.max(...currentIds) + 1 : 1;
                     if (!config.value.terminals) config.value.terminals = {};
                     
-                    config.value.terminals[nextId] = tier.value === 'pro' ? `Terminal ${nextId}` : `Free Terminal ${nextId}`;
+                    config.value.terminals[nextId] = `Terminal ${nextId}`;
                     updateConfig();
                 };
 
