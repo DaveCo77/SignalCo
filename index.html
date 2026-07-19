@@ -7,6 +7,8 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
     <style>
         :root {
             --brand-bg: #000000;
@@ -138,7 +140,7 @@
                 </div>
             </section>
 
-<!-- ATMOSPHERE EFFECTS -->
+            <!-- ATMOSPHERE EFFECTS -->
             <section class="panel-raised p-6 rounded-xl shadow-xl relative overflow-hidden">
                 <div v-if="tier !== 'pro'" class="absolute inset-0 bg-black/80 backdrop-blur-[2px] z-10 flex flex-col items-center justify-center border border-orange-900/30 rounded-xl">
                     <svg class="w-6 h-6 text-orange-700 mb-2" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd"></path></svg>
@@ -196,7 +198,7 @@
                 </div>
             </div>
 
-<!-- CHAT INPUT -->
+            <!-- CHAT INPUT -->
             <div class="bg-black/80 backdrop-blur border-t border-white/10 p-4">
                 <div class="flex flex-col gap-2">
                     <label class="flex items-center space-x-2 self-end text-xs transition-colors mr-1" 
@@ -238,6 +240,8 @@
         
         if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
+        const auth = firebase.auth();
+        const firestore = firebase.firestore();
 
         const { createApp, ref, onMounted, nextTick } = Vue;
 
@@ -247,7 +251,7 @@
                 
                 const urlParams = new URLSearchParams(window.location.search);
                 const eventId = ref(urlParams.get('event') || 'demo_sandbox');
-                const tier = ref('free'); // Secure default
+                const tier = ref('free'); 
                 
                 const statusPath = `events/${eventId.value}/status`;
                 const configPath = `events/${eventId.value}/config`;
@@ -265,6 +269,19 @@
                 const isUrgent = ref(false);
                 const messages = ref([]);
 
+                // Internal tracking variables to resolve the hybrid access rules
+                let currentRtdbStatus = 'free';
+                const masterIsPremium = ref(false);
+
+                // Evaluates access dynamically across both platforms
+                const evaluateTier = () => {
+                    if (currentRtdbStatus === 'pro' || currentRtdbStatus === 'paid' || masterIsPremium.value === true) {
+                        tier.value = 'pro';
+                    } else {
+                        tier.value = 'free';
+                    }
+                };
+
                 const scrollToBottom = () => {
                     nextTick(() => {
                         const container = document.getElementById('chatContainer');
@@ -273,12 +290,32 @@
                 };
 
                 onMounted(() => {
-                    // LIVE STATUS LISTENER
-                    db.ref(statusPath).on('value', snap => {
-                        const statusVal = snap.val();
-                        tier.value = (statusVal === 'pro' || statusVal === 'paid') ? 'pro' : 'free';
+                    // 1. MASTER SUBSCRIPTION CHECK (Firestore)
+                    auth.onAuthStateChanged(async (user) => {
+                        if (user) {
+                            try {
+                                const userDoc = await firestore.collection('users').doc(user.uid).get();
+                                if (userDoc.exists && userDoc.data().status === 'premium') {
+                                    masterIsPremium.value = true;
+                                } else {
+                                    masterIsPremium.value = false;
+                                }
+                            } catch (err) {
+                                console.error("Firestore auth verification failed: ", err);
+                            }
+                        } else {
+                            masterIsPremium.value = false;
+                        }
+                        evaluateTier();
                     });
 
+                    // 2. INDIVIDUAL EVENT LICENSE CHECK (Realtime Database)
+                    db.ref(statusPath).on('value', snap => {
+                        currentRtdbStatus = snap.val();
+                        evaluateTier();
+                    });
+
+                    // Config Listener
                     db.ref(configPath).on('value', snap => {
                         if (snap.val()) {
                             config.value = { ...config.value, ...snap.val() };
@@ -286,6 +323,7 @@
                         }
                     });
 
+                    // Comms Matrix Listener
                     db.ref(messagesPath).on('value', snap => {
                         const data = snap.val();
                         if (data) {
