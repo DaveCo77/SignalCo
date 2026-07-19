@@ -7,6 +7,8 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
     <style>
         :root {
             --brand-bg: #000000;
@@ -133,7 +135,7 @@
         </div>
     </footer>
 
-<script>
+    <script>
         const firebaseConfig = {
             apiKey: "AIzaSyDk7ynP52uYc29OL1Swl64tt0aTOTHaE9Y",
             authDomain: "signalco-94890.firebaseapp.com",
@@ -147,6 +149,8 @@
         
         if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
+        const auth = firebase.auth();
+        const firestore = firebase.firestore();
 
         const { createApp, ref, onMounted, nextTick } = Vue;
 
@@ -174,6 +178,16 @@
                 const messages = ref([]);
                 
                 let initialLoad = true;
+                let currentRtdbStatus = 'free';
+                const masterIsPremium = ref(false);
+
+                const evaluateTier = () => {
+                    if (currentRtdbStatus === 'pro' || currentRtdbStatus === 'paid' || masterIsPremium.value === true) {
+                        tier.value = 'pro';
+                    } else {
+                        tier.value = 'free';
+                    }
+                };
 
                 const scrollToBottom = () => {
                     nextTick(() => {
@@ -183,12 +197,32 @@
                 };
 
                 onMounted(() => {
-                    // LIVE STATUS LISTENER
-                    db.ref(statusPath).on('value', snap => {
-                        const statusVal = snap.val();
-                        tier.value = (statusVal === 'pro' || statusVal === 'paid') ? 'pro' : 'free';
+                    // 1. MASTER SUBSCRIPTION CHECK (Firestore)
+                    auth.onAuthStateChanged(async (user) => {
+                        if (user) {
+                            try {
+                                const userDoc = await firestore.collection('users').doc(user.uid).get();
+                                if (userDoc.exists && userDoc.data().status === 'premium') {
+                                    masterIsPremium.value = true;
+                                } else {
+                                    masterIsPremium.value = false;
+                                }
+                            } catch (err) {
+                                console.error("Firestore verification failed: ", err);
+                            }
+                        } else {
+                            masterIsPremium.value = false;
+                        }
+                        evaluateTier();
                     });
 
+                    // 2. LIVE STATUS LISTENER (Realtime Database)
+                    db.ref(statusPath).on('value', snap => {
+                        currentRtdbStatus = snap.val();
+                        evaluateTier();
+                    });
+
+                    // Config Listener
                     db.ref(configPath).on('value', snap => {
                         const data = snap.val();
                         if (data) {
@@ -205,6 +239,7 @@
                         }
                     });
 
+                    // Messages Listener
                     db.ref(messagesPath).on('value', snap => {
                         const data = snap.val();
                         if (data) {
