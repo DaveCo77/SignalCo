@@ -117,7 +117,7 @@
                             :class="config.master_signal === 'clear'
                                 ? 'border-zinc-400 bg-zinc-800 text-white'
                                 : 'text-zinc-400 hover:text-zinc-200 hover:border-zinc-700'"
-                            class="cue-btn rounded py-3.5 font-bold text-xs tracking-widest uppercase">
+                            class="cue-btn rounded px-2 py-3.5 font-bold text-[11px] leading-tight tracking-wider uppercase">
                         Clear
                     </button>
 
@@ -125,21 +125,21 @@
                             :class="config.master_signal === 'standby'
                                 ? 'border-amber-500 bg-amber-600/20 text-amber-300 animate-pulse shadow-[0_0_15px_rgba(245,158,11,0.2)]'
                                 : 'text-amber-500/80 hover:text-amber-400 hover:border-amber-900/60'"
-                            class="cue-btn rounded py-3.5 font-bold text-xs tracking-widest uppercase">
-                        Standby
+                            class="cue-btn rounded px-2 py-3.5 font-bold text-[11px] leading-tight tracking-wider uppercase">
+                        Base Station Not Active
                     </button>
 
                     <button @click="setMasterSignal('go')"
                             :class="config.master_signal === 'go'
                                 ? 'border-emerald-500 bg-emerald-600/20 text-emerald-300 shadow-[0_0_15px_rgba(16,185,129,0.25)]'
                                 : 'text-emerald-500/80 hover:text-emerald-400 hover:border-emerald-900/60'"
-                            class="cue-btn rounded py-3.5 font-bold text-xs tracking-widest uppercase">
-                        Show Go
+                            class="cue-btn rounded px-2 py-3.5 font-bold text-[11px] leading-tight tracking-wider uppercase">
+                        Base Station Active
                     </button>
                 </div>
             </section>
 
-            <!-- STREAM MODERATION & EFFECTS -->
+            <!-- CONTROLS & ANNOUNCEMENTS -->
             <section class="card rounded-lg p-5">
                 <h2 class="text-xs font-bold text-zinc-400 uppercase tracking-widest mb-3 pb-2 border-b border-zinc-800/80">
                     Controls & Announcements
@@ -170,6 +170,16 @@
                         </label>
                     </div>
 
+                    <!-- Master Read Receipts Toggle -->
+                    <label class="input-well p-3 rounded flex items-center justify-between cursor-pointer hover:border-emerald-900/60 transition-colors"
+                           :class="config.master_read_receipts ? 'border-emerald-600/50 bg-emerald-950/15' : ''">
+                        <div>
+                            <span class="text-xs font-bold block" :class="config.master_read_receipts ? 'text-emerald-400' : 'text-zinc-200'">Master Read Receipts</span>
+                            <span class="text-[10px] text-zinc-500">Show "Message acknowledged" button on Master Control for incoming messages</span>
+                        </div>
+                        <input type="checkbox" v-model="config.master_read_receipts" @change="updateConfig" class="w-4 h-4 accent-emerald-500 cursor-pointer">
+                    </label>
+
                     <!-- Pinned Message -->
                     <div>
                         <label class="block text-[11px] font-medium text-zinc-400 mb-1.5">Pin Announcement to Top</label>
@@ -187,7 +197,7 @@
             </section>
 
             <!-- TERMINALS -->
-            <section class="card rounded-lg p-5 flex-1 flex flex-col min-h-[260px]">
+            <section class="card rounded-lg p-5 flex-1 flex flex-col min-h-[240px]">
                 <div class="flex justify-between items-center mb-3 pb-2 border-b border-zinc-800/80">
                     <h2 class="text-xs font-bold text-zinc-400 uppercase tracking-widest">
                         Terminals ({{ terminalCount }})
@@ -277,15 +287,26 @@
                         </span>
                     </div>
 
-                    <!-- MESSAGE BUBBLE -->
-                    <div class="px-3.5 py-2.5 rounded-lg text-sm border leading-relaxed"
+                    <!-- MESSAGE BUBBLE + OPTIONAL MASTER ACKNOWLEDGE BUTTON -->
+                    <div class="px-4 py-3 rounded-lg text-sm border leading-relaxed flex flex-wrap items-center justify-between gap-4"
                          :class="[
                              msg.urgent ? 'message-urgent' :
                              (msg.sender === adminName
                                  ? 'bg-[#151221] border-purple-900/50 text-zinc-100 rounded-tr-none'
                                  : 'bg-[#101015] border-zinc-800 text-zinc-200 rounded-tl-none')
                          ]">
-                        {{ msg.text }}
+                        <span class="break-words">{{ msg.text }}</span>
+
+                        <button v-if="config.master_read_receipts && msg.sender !== adminName"
+                                @click="acknowledgeMessage(msg)"
+                                :disabled="isAckedByMaster(msg)"
+                                :class="isAckedByMaster(msg)
+                                    ? 'bg-emerald-950/60 border-emerald-700/60 text-emerald-300 cursor-default'
+                                    : 'bg-zinc-800 hover:bg-zinc-700 text-white border-zinc-600 cursor-pointer active:scale-95'"
+                                class="shrink-0 text-xs font-semibold px-3 py-1.5 rounded border transition-all">
+                            <span v-if="isAckedByMaster(msg)">✓ Message acknowledged</span>
+                            <span v-else>Message acknowledged</span>
+                        </button>
                     </div>
 
                     <!-- ACKNOWLEDGED STATUS ON MASTER -->
@@ -369,6 +390,7 @@
                     breathe_red: false,
                     master_signal: 'clear',
                     chat_locked: false,
+                    master_read_receipts: true,
                     pinned_message: ''
                 });
 
@@ -413,11 +435,23 @@
                     return new Date(ts).toTimeString().split(' ')[0];
                 };
 
+                const isAckedByMaster = (msg) => {
+                    return !!(msg.acks && msg.acks['master']);
+                };
+
+                const acknowledgeMessage = (msg) => {
+                    if (!msg.id || isAckedByMaster(msg)) return;
+                    db.ref(`${messagesPath}/${msg.id}/acks/master`).set({
+                        name: adminName,
+                        timestamp: Date.now()
+                    });
+                };
+
                 const getAckList = (msg) => {
                     if (!msg.acks) return [];
                     return Object.entries(msg.acks).map(([id, val]) => ({
                         id,
-                        name: val.name || `Terminal ${id}`,
+                        name: val.name || (id === 'master' ? adminName : `Terminal ${id}`),
                         timestamp: val.timestamp
                     }));
                 };
@@ -544,7 +578,8 @@
                     updateConfig, copyTerminalUrl, addTerminal, removeTerminal,
                     setMasterSignal, clearPinnedMessage, draftMessage, isUrgent,
                     messages, sendMessage, clearMessages,
-                    toggleProOverride, formatTime, getAckList
+                    toggleProOverride, formatTime, getAckList,
+                    isAckedByMaster, acknowledgeMessage
                 };
             }
         }).mount('#app');
