@@ -91,11 +91,11 @@
         <div class="flex items-center gap-3">
             <div v-if="masterSignal === 'standby'"
                  class="px-3.5 py-1 rounded bg-amber-500/20 text-amber-300 border border-amber-500 text-xs font-bold animate-pulse tracking-widest uppercase">
-                Standby
+                Base Station Not Active
             </div>
             <div v-if="masterSignal === 'go'"
                  class="px-3.5 py-1 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500 text-xs font-bold tracking-widest uppercase">
-                Show Go
+                Base Station Active
             </div>
 
             <div class="flex items-center gap-3 text-xs font-mono text-zinc-400 bg-black px-3.5 py-1.5 rounded border border-zinc-800">
@@ -156,7 +156,7 @@
                     </button>
                 </div>
 
-                <!-- SHARED ACKNOWLEDGED RECEIPTS -->
+                <!-- SHARED ACKNOWLEDGED RECEIPTS (INCLUDES MASTER CONTROL & TERMINALS) -->
                 <div v-if="getAckList(msg).length > 0"
                      class="mt-1.5 flex flex-wrap items-center gap-1.5"
                      :class="msg.sender === myName ? 'justify-end' : 'justify-start'">
@@ -275,7 +275,7 @@
                     if (!msg.acks) return [];
                     return Object.entries(msg.acks).map(([id, val]) => ({
                         id,
-                        name: val.name || `Terminal ${id}`,
+                        name: val.name || (id === 'master' ? 'MASTER CONTROL' : `Terminal ${id}`),
                         timestamp: val.timestamp
                     }));
                 };
