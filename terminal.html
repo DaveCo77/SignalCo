@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SignalCo // Endpoint Terminal</title>
+    <title>SignalCo | Terminal</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -15,26 +15,24 @@
     <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
     <style>
         :root {
-            --bg-chassis: #050507;
+            --bg-main: #050507;
             --bg-panel: #0b0b0e;
-            --bg-well: #08080b;
-            --border-dim: #1e1e26;
-            --argon-accent: #8b55d6;
+            --border-subtle: #1e1e26;
+            --brand-accent: #8b55d6;
         }
 
         body {
-            background-color: var(--bg-chassis);
+            background-color: var(--bg-main);
             color: #e4e4e7;
             font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
             -webkit-font-smoothing: antialiased;
         }
 
-        .font-mono-tech {
+        .font-mono {
             font-family: 'JetBrains Mono', monospace;
             font-variant-numeric: tabular-nums;
         }
 
-        /* Master Tally Border & Ambient States */
         .signal-standby {
             background-color: #120d02 !important;
             box-shadow: inset 0 0 90px rgba(245, 158, 11, 0.18);
@@ -49,7 +47,7 @@
         }
 
         @keyframes breathe-red {
-            0%, 100% { background-color: var(--bg-chassis); box-shadow: inset 0 0 0px rgba(220, 38, 38, 0); }
+            0%, 100% { background-color: var(--bg-main); box-shadow: inset 0 0 0px rgba(220, 38, 38, 0); }
             50% { background-color: #160407; box-shadow: inset 0 0 130px rgba(220, 38, 38, 0.35); }
         }
         .breathe-active { animation: breathe-red 4.5s ease-in-out infinite; }
@@ -71,161 +69,128 @@
           'signal-standby': masterSignal === 'standby',
           'signal-go': masterSignal === 'go'
       }"
-      class="h-screen flex flex-col overflow-hidden transition-colors duration-300 select-none">
+      class="h-screen flex flex-col overflow-hidden transition-colors duration-300">
 
-    <!-- SANDBOX WATERMARK (HIDDEN AUTOMATICALLY IN PRO TIER) -->
+    <!-- FREE TIER WATERMARK -->
     <div v-if="tier !== 'pro'" class="fixed inset-0 pointer-events-none z-[9999] overflow-hidden flex items-center justify-center opacity-[0.025]">
-        <div class="transform -rotate-45 text-[9vw] font-black tracking-widest text-white whitespace-nowrap">
-            SIGNALCO SANDBOX
+        <div class="transform -rotate-45 text-[9vw] font-black tracking-widest text-white whitespace-nowrap select-none">
+            SIGNALCO LITE
         </div>
     </div>
 
-    <!-- TOP ENDPOINT RACK BAR -->
-    <header class="px-6 py-3 border-b flex justify-between items-center z-20 shrink-0"
-            style="background-color: var(--bg-panel); border-color: var(--border-dim);">
-        <div class="flex items-center gap-4">
-            <div class="flex items-center gap-2.5">
-                <span class="w-2.5 h-2.5 rounded-sm bg-emerald-500 shadow-[0_0_8px_#10b981]"></span>
-                <span class="text-[11px] font-mono-tech text-zinc-500 uppercase tracking-widest">STATION //</span>
-                <h1 class="text-lg font-extrabold tracking-wider uppercase text-white">
-                    {{ myName }}
-                </h1>
-            </div>
+    <!-- HEADER -->
+    <header class="px-6 py-3.5 border-b flex justify-between items-center z-20 shrink-0"
+            style="background-color: var(--bg-panel); border-color: var(--border-subtle);">
+        <div class="flex items-center gap-3">
+            <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-[0_0_8px_#10b981]"></span>
+            <h1 class="text-lg font-extrabold tracking-wider uppercase" style="color: var(--brand-accent);">
+                {{ myName }}
+            </h1>
         </div>
 
         <div class="flex items-center gap-3">
-            <!-- GLOBAL TALLY STATUS PILL -->
             <div v-if="masterSignal === 'standby'"
-                 class="px-3.5 py-1 rounded bg-amber-500/20 text-amber-300 border border-amber-500 font-mono-tech text-xs font-bold animate-pulse tracking-widest">
-                TALLY: STANDBY
+                 class="px-3.5 py-1 rounded bg-amber-500/20 text-amber-300 border border-amber-500 text-xs font-bold animate-pulse tracking-widest uppercase">
+                Standby
             </div>
             <div v-if="masterSignal === 'go'"
-                 class="px-3.5 py-1 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500 font-mono-tech text-xs font-bold tracking-widest shadow-[0_0_15px_rgba(16,185,129,0.3)]">
-                TALLY: SHOW GO
-            </div>
-            <div v-if="masterSignal === 'clear'"
-                 class="px-3 py-1 rounded bg-zinc-900 text-zinc-400 border border-zinc-800 font-mono-tech text-xs tracking-widest">
-                TALLY: CLEAR
+                 class="px-3.5 py-1 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500 text-xs font-bold tracking-widest uppercase">
+                Show Go
             </div>
 
-            <!-- UNREAD CUE COUNTER / BULK ACK -->
-            <button v-if="unreadCount > 0"
-                    @click="ackAllUnread"
-                    class="px-3 py-1 rounded bg-amber-500 hover:bg-amber-400 text-black font-mono-tech text-xs font-bold uppercase tracking-wider transition-all shadow-[0_0_12px_rgba(245,158,11,0.4)]">
-                ACK ALL ({{ unreadCount }})
-            </button>
-
-            <!-- TERMINAL ID & CLOCK -->
-            <div class="flex items-center gap-3 text-xs font-mono-tech text-zinc-400 bg-black px-3 py-1.5 rounded border border-zinc-800">
-                <span>CH: T-{{ terminalId }}</span>
+            <div class="flex items-center gap-3 text-xs font-mono text-zinc-400 bg-black px-3.5 py-1.5 rounded border border-zinc-800">
+                <span>ID: {{ terminalId }}</span>
                 <span class="text-zinc-700">|</span>
-                <span class="text-zinc-200 font-semibold">{{ clock }}</span>
+                <span class="text-zinc-200">{{ clock }}</span>
             </div>
         </div>
     </header>
 
-    <!-- PINNED GLOBAL STAGE BANNER -->
+    <!-- PINNED BANNER -->
     <div v-if="pinnedMessage"
-         class="bg-purple-950/40 border-b border-purple-500/50 text-purple-200 font-mono-tech px-6 py-2.5 text-xs font-semibold tracking-wide flex justify-center items-center gap-2.5 z-20 shrink-0">
-        <span class="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded bg-purple-500/30 text-purple-200 border border-purple-400/40">
-            STAGE NOTICE
-        </span>
-        <span>{{ pinnedMessage }}</span>
+         class="bg-purple-950/40 border-b border-purple-500/50 text-purple-200 px-6 py-2.5 text-sm font-medium text-center z-20 shrink-0">
+        📌 <strong>Pinned:</strong> {{ pinnedMessage }}
     </div>
 
-    <!-- COMMS FEED -->
+    <!-- CHAT FEED -->
     <main class="flex-1 overflow-y-auto p-6 relative z-10" id="chatContainer">
-        <div class="max-w-4xl mx-auto space-y-3.5">
+        <div class="max-w-4xl mx-auto space-y-4">
             <div v-for="msg in messages" :key="msg.id"
-                 class="flex flex-col max-w-[88%]"
+                 class="flex flex-col max-w-[85%]"
                  :class="msg.sender === myName ? 'ml-auto items-end' : 'items-start'">
 
-                <!-- SENDER & TIME HEADER -->
+                <!-- SENDER & TIME -->
                 <div class="flex items-center gap-2 mb-1" :class="msg.sender === myName ? 'flex-row-reverse' : ''">
-                    <span class="text-[10px] font-mono-tech font-bold tracking-wider uppercase"
-                          :class="msg.sender === myName ? 'text-blue-400' : (msg.sender === 'MASTER CONTROL' ? 'text-purple-400' : 'text-zinc-400')">
+                    <span class="text-[11px] font-semibold"
+                          :class="msg.sender === myName ? 'text-blue-400' : (msg.sender === 'MASTER CONTROL' ? 'text-purple-400 font-bold' : 'text-zinc-400')">
                         {{ msg.sender }}
                     </span>
-                    <span class="text-[10px] font-mono-tech text-zinc-600">
+                    <span class="text-[10px] font-mono text-zinc-600">
                         {{ formatTime(msg.timestamp) }}
                     </span>
                     <span v-if="msg.urgent"
-                          class="text-[9px] font-mono-tech uppercase font-bold tracking-widest text-red-400 bg-red-950/70 px-1.5 py-0.5 rounded border border-red-800">
-                        PRIORITY
+                          class="text-[9px] uppercase font-bold tracking-widest text-red-400 bg-red-950/70 px-1.5 py-0.5 rounded border border-red-800">
+                        Priority
                     </span>
                 </div>
 
-                <!-- MESSAGE CARD + INLINE READ BUTTON -->
-                <div class="px-4 py-3 rounded border text-sm leading-relaxed flex items-center justify-between gap-4 select-text"
+                <!-- MESSAGE BUBBLE + MESSAGE ACKNOWLEDGED BUTTON -->
+                <div class="px-4 py-3 rounded-lg border text-sm leading-relaxed flex flex-wrap items-center justify-between gap-4"
                      :class="[
                          msg.urgent ? 'message-urgent' :
                          (msg.sender === myName
-                             ? 'bg-blue-950/20 border-blue-900/60 text-blue-100'
-                             : 'bg-[#0e0e13] border-zinc-800/90 text-zinc-200')
+                             ? 'bg-blue-950/20 border-blue-900/60 text-blue-100 rounded-tr-none'
+                             : 'bg-[#0e0e13] border-zinc-800/90 text-zinc-200 rounded-tl-none')
                      ]">
                     <span class="break-words">{{ msg.text }}</span>
 
-                    <!-- MESSAGE READ / ACK BUTTON (FOR INCOMING MESSAGES) -->
                     <button v-if="msg.sender !== myName"
                             @click="acknowledgeMessage(msg)"
                             :disabled="isAckedByMe(msg)"
                             :class="isAckedByMe(msg)
-                                ? 'bg-emerald-950/50 border-emerald-700/60 text-emerald-400 cursor-default'
-                                : (msg.urgent
-                                    ? 'bg-red-600 hover:bg-red-500 text-white border-red-400 animate-pulse cursor-pointer shadow-[0_0_10px_rgba(239,68,68,0.4)]'
-                                    : 'bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border-zinc-600 cursor-pointer')"
-                            class="shrink-0 text-[10px] font-mono-tech font-bold uppercase tracking-wider px-2.5 py-1.5 rounded border transition-all flex items-center gap-1.5">
-                        <span v-if="isAckedByMe(msg)">✓ READ</span>
-                        <span v-else>ACK READ</span>
+                                ? 'bg-emerald-950/60 border-emerald-700/60 text-emerald-300 cursor-default'
+                                : 'bg-zinc-800 hover:bg-zinc-700 text-white border-zinc-600 cursor-pointer active:scale-95'"
+                            class="shrink-0 text-xs font-semibold px-3 py-1.5 rounded border transition-all">
+                        <span v-if="isAckedByMe(msg)">✓ Message acknowledged</span>
+                        <span v-else>Message acknowledged</span>
                     </button>
                 </div>
 
-                <!-- SHARED ACK / READ TALLY FOOTER -->
+                <!-- SHARED ACKNOWLEDGED RECEIPTS -->
                 <div v-if="getAckList(msg).length > 0"
-                     class="mt-1 flex flex-wrap items-center gap-1.5"
+                     class="mt-1.5 flex flex-wrap items-center gap-1.5"
                      :class="msg.sender === myName ? 'justify-end' : 'justify-start'">
-                    <span class="text-[9px] font-mono-tech text-zinc-500 uppercase">READ BY:</span>
                     <span v-for="ack in getAckList(msg)" :key="ack.id"
-                          class="text-[10px] font-mono-tech bg-emerald-950/40 border border-emerald-800/50 text-emerald-300 px-1.5 py-0.5 rounded">
-                        ✓ {{ ack.name }}
+                          class="text-[11px] bg-emerald-950/40 border border-emerald-800/50 text-emerald-300 px-2 py-0.5 rounded">
+                        ✓ Message acknowledged ({{ ack.name }})
                     </span>
                 </div>
             </div>
 
-            <div v-if="messages.length === 0" class="text-center text-zinc-600 mt-24 font-mono-tech text-xs uppercase tracking-widest">
-                Standing By for Master Control Traffic...
+            <div v-if="messages.length === 0" class="text-center text-zinc-600 mt-20 text-xs uppercase tracking-widest">
+                No messages yet
             </div>
         </div>
     </main>
 
-    <!-- TERMINAL INPUT FOOTER -->
-    <footer class="border-t p-4 z-20 shrink-0" style="background-color: var(--bg-panel); border-color: var(--border-dim);">
+    <!-- CHAT INPUT -->
+    <footer class="border-t p-4 z-20 shrink-0" style="background-color: var(--bg-panel); border-color: var(--border-subtle);">
         <div class="max-w-4xl mx-auto flex flex-col gap-2">
-            <div class="flex justify-between items-center">
-                <span class="text-[10px] font-mono-tech uppercase tracking-wider"
-                      :class="isLocked ? 'text-red-400' : 'text-zinc-500'">
-                    {{ isLocked ? 'RETURN COMMS LOCKED BY MASTER CONTROL' : 'RETURN COMMS ACTIVE' }}
-                </span>
-
-                <label class="flex items-center gap-2 text-[11px] font-mono-tech uppercase cursor-pointer px-2 py-0.5 rounded border transition-colors"
-                       :class="[
-                           isLocked ? 'opacity-40 cursor-not-allowed border-zinc-800 text-zinc-600' :
-                           (isUrgent ? 'bg-red-950/50 border-red-600 text-red-300' : 'bg-zinc-900 border-zinc-800 text-zinc-400 hover:text-red-400')
-                       ]">
-                    <input type="checkbox" v-model="isUrgent" :disabled="isLocked" class="accent-red-600 w-3 h-3">
-                    <span>Priority Flag</span>
-                </label>
-            </div>
+            <label class="flex items-center gap-2 self-end text-xs cursor-pointer select-none"
+                   :class="isLocked ? 'opacity-40 cursor-not-allowed text-zinc-600' : 'text-zinc-400 hover:text-red-400'">
+                <input type="checkbox" v-model="isUrgent" :disabled="isLocked" class="accent-red-600 w-3.5 h-3.5">
+                <span class="uppercase tracking-wider text-[11px]">Flag Priority</span>
+            </label>
 
             <div class="flex gap-2.5">
                 <input type="text" v-model="draftMessage" @keyup.enter="sendMessage" :disabled="isLocked"
-                       :placeholder="isLocked ? 'TRANSMISSIONS MUTED BY MASTER...' : 'Transmit message to Master Control...'"
-                       class="flex-1 bg-[#070709] border border-zinc-800 rounded px-4 py-2.5 text-sm text-white font-mono-tech focus:outline-none focus:border-purple-500 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
+                       :placeholder="isLocked ? 'Chat locked by Master Control...' : 'Send a message...'"
+                       class="flex-1 bg-[#070709] border border-zinc-800 rounded px-4 py-2.5 text-sm text-white focus:outline-none focus:border-purple-500 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
                 <button @click="sendMessage" :disabled="isLocked"
                         :class="isLocked
-                            ? 'bg-zinc-900 border-zinc-800 text-zinc-600 cursor-not-allowed'
-                            : (isUrgent ? 'bg-red-600 hover:bg-red-500 text-white border-red-400' : 'bg-zinc-100 hover:bg-white text-black border-white')"
-                        class="font-mono-tech font-bold px-6 py-2.5 rounded uppercase tracking-widest text-xs border transition-all active:translate-y-[1px]">
+                            ? 'bg-zinc-900 border border-zinc-800 text-zinc-600 cursor-not-allowed'
+                            : (isUrgent ? 'bg-red-600 hover:bg-red-500 text-white' : 'bg-zinc-100 hover:bg-white text-black')"
+                        class="font-bold px-6 py-2.5 rounded uppercase tracking-wider text-xs transition-all active:scale-95">
                     Send
                 </button>
             </div>
@@ -249,7 +214,7 @@
         const auth = firebase.auth();
         const firestore = firebase.firestore();
 
-        const { createApp, ref, computed, onMounted, nextTick } = Vue;
+        const { createApp, ref, onMounted, nextTick } = Vue;
 
         createApp({
             setup() {
@@ -257,7 +222,7 @@
                 const eventId = ref(urlParams.get('event') || 'demo_sandbox');
                 const terminalId = ref(urlParams.get('t') || '1');
 
-                const urlProFlag = urlParams.get('pro') === '1' || urlParams.get('tier') === 'pro' || urlParams.get('argon') === '1';
+                const urlProFlag = urlParams.get('pro') === '1' || urlParams.get('tier') === 'pro';
                 const localOverride = ref(urlProFlag || localStorage.getItem(`signalco_pro_${eventId.value}`) === 'true');
                 const tier = ref(localOverride.value ? 'pro' : 'free');
 
@@ -265,7 +230,7 @@
                 const configPath = `events/${eventId.value}/config`;
                 const messagesPath = `events/${eventId.value}/messages`;
 
-                const myName = ref(`STATION ${terminalId.value}`);
+                const myName = ref(`Terminal ${terminalId.value}`);
                 const isBreathing = ref(false);
                 const masterSignal = ref('clear');
                 const isLocked = ref(false);
@@ -310,32 +275,16 @@
                     if (!msg.acks) return [];
                     return Object.entries(msg.acks).map(([id, val]) => ({
                         id,
-                        name: val.name || `T-${id}`,
+                        name: val.name || `Terminal ${id}`,
                         timestamp: val.timestamp
                     }));
                 };
-
-                const unreadCount = computed(() => {
-                    return messages.value.filter(m => m.sender !== myName.value && !isAckedByMe(m)).length;
-                });
 
                 const acknowledgeMessage = (msg) => {
                     if (!msg.id || isAckedByMe(msg)) return;
                     db.ref(`${messagesPath}/${msg.id}/acks/${terminalId.value}`).set({
                         name: myName.value,
                         timestamp: Date.now()
-                    });
-                };
-
-                const ackAllUnread = () => {
-                    const now = Date.now();
-                    messages.value.forEach(msg => {
-                        if (msg.sender !== myName.value && !isAckedByMe(msg)) {
-                            db.ref(`${messagesPath}/${msg.id}/acks/${terminalId.value}`).set({
-                                name: myName.value,
-                                timestamp: now
-                            });
-                        }
                     });
                 };
 
@@ -375,7 +324,7 @@
                             if (data.terminals && data.terminals[terminalId.value]) {
                                 myName.value = data.terminals[terminalId.value];
                             } else {
-                                myName.value = `UNASSIGNED (T-${terminalId.value})`;
+                                myName.value = `Terminal ${terminalId.value}`;
                             }
 
                             isBreathing.value = data.breathe_red || false;
@@ -397,7 +346,7 @@
                             if (!initialLoad && msgArray.length > 0) {
                                 const newestMsg = msgArray[msgArray.length - 1];
                                 if (newestMsg.urgent && newestMsg.sender !== myName.value) {
-                                    if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+                                    if (navigator.vibrate) navigator.vibrate([200]);
                                 }
                             }
                             initialLoad = false;
@@ -416,12 +365,7 @@
                         text: draftMessage.value.trim(),
                         timestamp: Date.now(),
                         urgent: isUrgent.value,
-                        acks: {
-                            [terminalId.value]: {
-                                name: myName.value,
-                                timestamp: Date.now()
-                            }
-                        }
+                        acks: {}
                     });
 
                     draftMessage.value = '';
@@ -431,8 +375,7 @@
                 return {
                     eventId, terminalId, tier, myName, isBreathing, masterSignal,
                     draftMessage, isUrgent, messages, sendMessage, isLocked, pinnedMessage,
-                    clock, unreadCount, formatTime, isAckedByMe, getAckList,
-                    acknowledgeMessage, ackAllUnread
+                    clock, formatTime, isAckedByMe, getAckList, acknowledgeMessage
                 };
             }
         }).mount('#app');
