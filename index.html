@@ -440,7 +440,7 @@
                         <div class="flex gap-2">
                             <input type="text" v-model="config.pinned_message"
                                    @input="patchConfig({ pinned_message: config.pinned_message })"
-                                   placeholder="Type global alert..."
+                                   placeholder="Type global alert (or click 📌 on any message)..."
                                    class="flex-1 input-well rounded px-3 py-2 text-xs text-white focus:outline-none focus:border-purple-500">
                             <button v-if="config.pinned_message" @click="clearPinnedMessage"
                                     class="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs px-3 rounded border border-zinc-700 cursor-pointer">
@@ -451,7 +451,7 @@
                 </div>
             </section>
 
-            <!-- 5. TERMINALS -->
+            <!-- 5. TERMINALS (WITH LIVE ONLINE / OFFLINE STATUS) -->
             <section class="card rounded-lg p-4 flex-1 flex flex-col min-h-[200px]">
                 <div class="flex justify-between items-center mb-3 pb-2 border-b border-zinc-800/80">
                     <h2 class="text-xs font-bold text-zinc-400 uppercase tracking-widest">
@@ -471,9 +471,13 @@
 
                 <div class="space-y-2 overflow-y-auto flex-1 pr-1">
                     <div v-for="(name, id) in config.terminals" :key="id"
-                         class="input-well p-2 rounded flex items-center gap-2.5">
-                        <div class="bg-zinc-900 text-xs font-mono px-2 py-1 rounded text-zinc-400 border border-zinc-800 shrink-0">
-                            ID {{ id }}
+                         class="input-well p-2 rounded flex items-center gap-2">
+                        <!-- Live Connection Dot & ID -->
+                        <div class="bg-zinc-900 text-xs font-mono px-2 py-1 rounded text-zinc-300 border border-zinc-800 shrink-0 flex items-center gap-1.5"
+                             :title="isTerminalOnline(id) ? 'Terminal screen is open & online' : 'Terminal screen is offline'">
+                            <span class="w-2 h-2 rounded-full"
+                                  :class="isTerminalOnline(id) ? 'bg-emerald-400 shadow-[0_0_8px_#10b981]' : 'bg-zinc-600'"></span>
+                            <span>ID {{ id }}</span>
                         </div>
 
                         <input type="text" v-model="config.terminals[id]"
@@ -497,7 +501,8 @@
                         </button>
 
                         <button @click="removeTerminal(id)"
-                                class="text-zinc-500 hover:text-red-400 hover:bg-red-950/40 px-2 py-1 rounded text-xs transition-colors cursor-pointer">
+                                class="text-zinc-500 hover:text-red-400 hover:bg-red-950/40 px-2 py-1 rounded text-xs transition-colors cursor-pointer"
+                                title="Remove Terminal">
                             ✕
                         </button>
                     </div>
@@ -530,15 +535,19 @@
             <!-- CHAT FEED -->
             <div class="flex-1 overflow-y-auto p-5 space-y-4 bg-[#060608]" id="chatContainer">
                 <div v-if="config.pinned_message"
-                     class="bg-purple-950/40 border-2 border-purple-500 rounded-lg p-3.5 text-sm text-purple-100 font-semibold flex justify-between items-center">
+                     class="bg-purple-950/40 border-2 border-purple-500 rounded-lg p-3.5 text-sm text-purple-100 font-semibold flex justify-between items-center gap-3">
                     <span>📌 Pinned: {{ config.pinned_message }}</span>
+                    <button @click="clearPinnedMessage"
+                            class="text-xs bg-purple-900/60 hover:bg-purple-800 text-purple-200 px-2 py-0.5 rounded border border-purple-400/40 shrink-0 cursor-pointer">
+                        Unpin
+                    </button>
                 </div>
 
                 <div v-for="msg in messages" :key="msg.id"
-                     class="flex flex-col max-w-[95%]"
+                     class="flex flex-col max-w-[95%] group"
                      :class="msg.sender === adminName ? 'ml-auto items-end' : 'items-start'">
 
-                    <!-- SENDER, TARGET & TIME -->
+                    <!-- SENDER, TARGET, TIME & PER-MESSAGE ACTION TOOLBAR -->
                     <div class="flex flex-wrap items-center gap-2 mb-1" :class="msg.sender === adminName ? 'flex-row-reverse' : ''">
                         <span class="text-xs font-bold"
                               :style="{ color: msg.sender === adminName ? (config.master_color || '#8b55d6') : (config.terminal_color || '#3b82f6') }">
@@ -556,6 +565,7 @@
 
                         <span class="text-[10px] font-mono text-zinc-500">
                             {{ formatTime(msg.timestamp) }}
+                            <span v-if="msg.edited" class="italic text-zinc-600 ml-0.5">(edited)</span>
                         </span>
 
                         <span v-if="msg.urgent"
@@ -563,28 +573,76 @@
                             Priority
                         </span>
 
-                        <!-- Live Re-Colour Dots on Any Sent Message -->
-                        <div class="flex items-center gap-1 ml-1 opacity-50 hover:opacity-100 transition-opacity" title="Change message colour">
+                        <!-- Live Re-Colour Dots -->
+                        <div class="flex items-center gap-1 ml-1 opacity-60 group-hover:opacity-100 transition-opacity" title="Change message colour">
                             <button v-for="mc in messageColorOptions" :key="'recol-'+msg.id+'-'+mc.id"
                                     @click="changeExistingMessageColor(msg, mc.id)"
                                     :style="{ backgroundColor: mc.hex }"
-                                    class="w-2.5 h-2.5 rounded-full border border-white/40 cursor-pointer"></button>
+                                    class="w-2.5 h-2.5 rounded-full border border-white/40 cursor-pointer hover:scale-125 transition-transform"></button>
+                        </div>
+
+                        <!-- Per-Message Action Buttons: Nudge, Pin, Edit, Delete -->
+                        <div class="flex items-center gap-1 opacity-75 group-hover:opacity-100 transition-opacity">
+                            <button @click="nudgeMessage(msg)"
+                                    class="text-[10px] bg-zinc-900 hover:bg-amber-950/80 text-zinc-300 hover:text-amber-300 border border-zinc-700 hover:border-amber-600/60 px-1.5 py-0.5 rounded transition-colors cursor-pointer"
+                                    title="Re-flash and chime terminals for this message">
+                                {{ nudgedId === msg.id ? '🔔 Nudged!' : '🔔 Nudge' }}
+                            </button>
+
+                            <button @click="pinFromChat(msg)"
+                                    :class="config.pinned_message === msg.text
+                                        ? 'bg-purple-900/80 text-purple-200 border-purple-400'
+                                        : 'bg-zinc-900 hover:bg-purple-950/80 text-zinc-300 hover:text-purple-300 border-zinc-700'"
+                                    class="text-[10px] border px-1.5 py-0.5 rounded transition-colors cursor-pointer"
+                                    title="Pin or unpin this message at the top of the screen">
+                                📌
+                            </button>
+
+                            <button @click="startEditing(msg)"
+                                    class="text-[10px] bg-zinc-900 hover:bg-blue-950/80 text-zinc-300 hover:text-blue-300 border border-zinc-700 hover:border-blue-600/60 px-1.5 py-0.5 rounded transition-colors cursor-pointer"
+                                    title="Edit message text">
+                                ✎
+                            </button>
+
+                            <button @click="deleteMessage(msg.id)"
+                                    class="text-[10px] bg-zinc-900 hover:bg-red-950/90 text-zinc-400 hover:text-red-300 border border-zinc-700 hover:border-red-600/60 px-1.5 py-0.5 rounded transition-colors cursor-pointer"
+                                    title="Delete this message">
+                                ✕
+                            </button>
                         </div>
                     </div>
 
                     <!-- MESSAGE BUBBLE -->
-                    <div class="px-5 py-3.5 rounded-xl border-2 flex flex-wrap items-center justify-between gap-4 transition-all"
+                    <div class="px-5 py-3.5 rounded-xl border-2 flex flex-wrap items-center justify-between gap-4 transition-all w-full"
                          :style="getBubbleInlineStyle(msg)"
                          :class="[
                              getMasterAnimationClass(msg),
                              msg.sender === adminName ? 'rounded-tr-none' : 'rounded-tl-none'
                          ]">
-                        <span class="break-words font-bold"
+
+                        <!-- INLINE EDIT MODE -->
+                        <div v-if="editingId === msg.id" class="flex-1 flex items-center gap-2 min-w-[240px]">
+                            <input type="text" v-model="editingText"
+                                   @keyup.enter="saveEdit(msg)"
+                                   @keyup.esc="cancelEdit"
+                                   class="flex-1 bg-black/80 border border-white/50 rounded px-3 py-1.5 text-sm text-white font-semibold focus:outline-none">
+                            <button @click="saveEdit(msg)"
+                                    class="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold px-3 py-1.5 rounded cursor-pointer">
+                                Save
+                            </button>
+                            <button @click="cancelEdit"
+                                    class="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs px-2.5 py-1.5 rounded cursor-pointer">
+                                Cancel
+                            </button>
+                        </div>
+
+                        <!-- NORMAL DISPLAY MODE -->
+                        <span v-else class="break-words font-bold"
                               :style="{ fontSize: Math.min(Number(config.font_size_px) || 22, 64) + 'px', lineHeight: '1.2' }">
                             {{ msg.text }}
                         </span>
 
-                        <button v-if="config.master_read_receipts && msg.sender !== adminName"
+                        <button v-if="config.master_read_receipts && msg.sender !== adminName && editingId !== msg.id"
                                 @click="acknowledgeMessage(msg)"
                                 :disabled="isAckedByMaster(msg)"
                                 :class="isAckedByMaster(msg)
@@ -622,7 +680,7 @@
                                 class="input-well rounded px-2.5 py-1 text-xs text-white font-semibold focus:outline-none">
                             <option value="all">All Terminals</option>
                             <option v-for="(name, id) in config.terminals" :key="id" :value="String(id)">
-                                {{ name }} (ID {{ id }})
+                                {{ name }} (ID {{ id }}) {{ isTerminalOnline(id) ? '• Online' : '' }}
                             </option>
                         </select>
                     </div>
@@ -694,6 +752,7 @@
                 const statusPath = `events/${eventId.value}/status`;
                 const configPath = `events/${eventId.value}/config`;
                 const messagesPath = `events/${eventId.value}/messages`;
+                const presencePath = `events/${eventId.value}/presence`;
 
                 const colorSwatches = ['#8b55d6', '#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#06b6d4'];
 
@@ -755,6 +814,7 @@
                     flash_trigger: 0
                 });
 
+                const presenceMap = ref({});
                 const draftMessage = ref('');
                 const isUrgent = ref(false);
                 const targetTerminal = ref('all');
@@ -763,6 +823,10 @@
                 const copiedId = ref(null);
                 const clock = ref('00:00:00');
                 const isBurstFlashing = ref(false);
+
+                const editingId = ref(null);
+                const editingText = ref('');
+                const nudgedId = ref(null);
 
                 let currentRtdbStatus = 'pro';
                 const masterIsPremium = ref(false);
@@ -777,6 +841,10 @@
                 };
 
                 const terminalCount = computed(() => Object.keys(config.value.terminals || {}).length);
+
+                const isTerminalOnline = (id) => {
+                    return !!(presenceMap.value && presenceMap.value[id]);
+                };
 
                 const selectedColorHex = computed(() => {
                     if (selectedMsgColor.value === 'default') return config.value.master_color || '#8b55d6';
@@ -850,6 +918,48 @@
                         color: colorId,
                         urgent: colorId === 'red' ? true : false
                     });
+                };
+
+                // Individual Message Actions: Delete, Edit, Pin, Nudge
+                const deleteMessage = (msgId) => {
+                    if (!msgId) return;
+                    db.ref(`${messagesPath}/${msgId}`).remove();
+                };
+
+                const startEditing = (msg) => {
+                    editingId.value = msg.id;
+                    editingText.value = msg.text;
+                };
+
+                const saveEdit = (msg) => {
+                    if (!msg.id || !editingText.value.trim()) return;
+                    db.ref(`${messagesPath}/${msg.id}`).update({
+                        text: editingText.value.trim(),
+                        edited: true
+                    });
+                    editingId.value = null;
+                    editingText.value = '';
+                };
+
+                const cancelEdit = () => {
+                    editingId.value = null;
+                    editingText.value = '';
+                };
+
+                const pinFromChat = (msg) => {
+                    const nextPin = config.value.pinned_message === msg.text ? '' : msg.text;
+                    patchConfig({ pinned_message: nextPin });
+                };
+
+                const nudgeMessage = (msg) => {
+                    if (!msg.id) return;
+                    nudgedId.value = msg.id;
+                    db.ref(`${messagesPath}/${msg.id}`).update({
+                        nudgedAt: Date.now()
+                    });
+                    setTimeout(() => {
+                        if (nudgedId.value === msg.id) nudgedId.value = null;
+                    }, 1500);
                 };
 
                 const getMasterAnimationClass = (msg) => {
@@ -951,13 +1061,20 @@
                         }
                     });
 
+                    db.ref(presencePath).on('value', snap => {
+                        presenceMap.value = snap.val() || {};
+                    });
+
                     db.ref(messagesPath).on('value', snap => {
                         const data = snap.val();
                         if (data) {
+                            const prevCount = messages.value.length;
                             messages.value = Object.entries(data)
                                 .map(([id, val]) => ({ id, ...val }))
                                 .sort((a, b) => a.timestamp - b.timestamp);
-                            scrollToBottom();
+                            if (messages.value.length > prevCount) {
+                                scrollToBottom();
+                            }
                         } else {
                             messages.value = [];
                         }
@@ -1033,11 +1150,13 @@
 
                 return {
                     config, adminName, eventId, tier, clock, copiedId, terminalCount,
-                    colorSwatches, effectSwatches, fontPresets, animationOptions, messageColorOptions,
-                    targetTerminal, selectedMsgColor, selectedColorHex, draftInputStyle,
+                    isTerminalOnline, colorSwatches, effectSwatches, fontPresets, animationOptions,
+                    messageColorOptions, targetTerminal, selectedMsgColor, selectedColorHex, draftInputStyle,
                     isBurstFlashing, hexToRgba, patchConfig, setFontPx, setMasterColor, setTerminalColor,
                     setEffectColor, toggleContinuousFlash, toggleBreathe, triggerRemoteFlash,
-                    getTerminalName, getBubbleInlineStyle, changeExistingMessageColor, getMasterAnimationClass,
+                    getTerminalName, getBubbleInlineStyle, changeExistingMessageColor,
+                    deleteMessage, editingId, editingText, startEditing, saveEdit, cancelEdit,
+                    pinFromChat, nudgeMessage, nudgedId, getMasterAnimationClass,
                     copyTerminalUrl, addTerminal, removeTerminal, setMasterSignal, clearPinnedMessage,
                     draftMessage, isUrgent, messages, sendMessage, clearMessages,
                     toggleProOverride, formatTime, getAckList, isAckedByMaster, acknowledgeMessage
