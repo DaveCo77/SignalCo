@@ -3,10 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SignalCo | Terminal</title>
+    <title>SignalCo | Master Control</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
@@ -17,8 +17,10 @@
         :root {
             --bg-main: #050507;
             --bg-panel: #0b0b0e;
+            --bg-card: #111116;
+            --bg-input: #070709;
             --border-subtle: #1e1e26;
-            --terminal-accent: #3b82f6;
+            --master-accent: #8b55d6;
         }
 
         body {
@@ -33,68 +35,56 @@
             font-variant-numeric: tabular-nums;
         }
 
-        /* Dedicated Top-Level Overlay for Breathe Red (Works over all panels) */
-        @keyframes breathe-red-overlay {
-            0%, 100% {
-                box-shadow: inset 0 0 0px rgba(239, 68, 68, 0);
-                background-color: rgba(220, 38, 38, 0);
-                border-color: rgba(239, 68, 68, 0.15);
-            }
-            50% {
-                box-shadow: inset 0 0 140px rgba(239, 68, 68, 0.65);
-                background-color: rgba(185, 28, 28, 0.14);
-                border-color: rgba(239, 68, 68, 0.95);
-            }
-        }
-        .breathe-overlay-active {
-            animation: breathe-red-overlay 3.2s ease-in-out infinite;
+        .panel {
+            background-color: var(--bg-panel);
+            border: 1px solid var(--border-subtle);
         }
 
-        /* Dedicated Top-Level Overlay for Screen Flash */
-        @keyframes screen-flash-overlay {
-            0%, 100% { opacity: 0; }
-            20%, 60% { opacity: 1; }
-            40% { opacity: 0.25; }
-        }
-        .flash-overlay-active {
-            animation: screen-flash-overlay 0.9s ease-out forwards;
+        .card {
+            background-color: var(--bg-card);
+            border: 1px solid var(--border-subtle);
+            box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.04), 0 4px 12px rgba(0, 0, 0, 0.4);
         }
 
-        /* Base Station Cues */
-        .signal-standby-ring {
-            box-shadow: inset 0 0 90px rgba(245, 158, 11, 0.22);
-            border: 3px solid rgba(245, 158, 11, 0.85);
-        }
-        .signal-go-ring {
-            box-shadow: inset 0 0 110px rgba(16, 185, 129, 0.25);
-            border: 3px solid rgba(16, 185, 129, 0.9);
+        .input-well {
+            background-color: var(--bg-input);
+            border: 1px solid var(--border-subtle);
         }
 
-        /* Message Highlight Colours */
-        .msg-color-red { background-color: rgba(153, 27, 27, 0.42) !important; border-color: #ef4444 !important; color: #fecaca !important; }
-        .msg-color-amber { background-color: rgba(146, 64, 14, 0.42) !important; border-color: #f59e0b !important; color: #fde68a !important; }
-        .msg-color-green { background-color: rgba(6, 95, 70, 0.42) !important; border-color: #10b981 !important; color: #a7f3d0 !important; }
-        .msg-color-blue { background-color: rgba(30, 58, 138, 0.42) !important; border-color: #3b82f6 !important; color: #bfdbfe !important; }
-        .msg-color-purple { background-color: rgba(88, 28, 135, 0.42) !important; border-color: #a855f7 !important; color: #e9d5ff !important; }
-        .msg-color-cyan { background-color: rgba(21, 94, 117, 0.42) !important; border-color: #06b6d4 !important; color: #a5f3fc !important; }
+        .cue-btn {
+            background: #0d0d12;
+            border: 1px solid #23232c;
+            transition: all 0.12s ease;
+        }
+        .cue-btn:active {
+            transform: translateY(1px);
+        }
+
+        /* Message Colour Themes */
+        .msg-color-red { background-color: rgba(153, 27, 27, 0.35) !important; border-color: #ef4444 !important; color: #fecaca !important; }
+        .msg-color-amber { background-color: rgba(146, 64, 14, 0.35) !important; border-color: #f59e0b !important; color: #fde68a !important; }
+        .msg-color-green { background-color: rgba(6, 95, 70, 0.35) !important; border-color: #10b981 !important; color: #a7f3d0 !important; }
+        .msg-color-blue { background-color: rgba(30, 58, 138, 0.35) !important; border-color: #3b82f6 !important; color: #bfdbfe !important; }
+        .msg-color-purple { background-color: rgba(88, 28, 135, 0.35) !important; border-color: #a855f7 !important; color: #e9d5ff !important; }
+        .msg-color-cyan { background-color: rgba(21, 94, 117, 0.35) !important; border-color: #06b6d4 !important; color: #a5f3fc !important; }
 
         /* Message Movement Animations */
         @keyframes anim-pulse {
             0%, 100% { transform: scale(1); box-shadow: 0 0 0 rgba(255, 255, 255, 0); }
-            50% { transform: scale(1.02); box-shadow: 0 0 24px rgba(255, 255, 255, 0.25); }
+            50% { transform: scale(1.015); box-shadow: 0 0 18px rgba(255, 255, 255, 0.18); }
         }
         @keyframes anim-bounce {
             0%, 100% { transform: translateY(0); }
-            50% { transform: translateY(-7px); }
+            50% { transform: translateY(-5px); }
         }
         @keyframes anim-shake {
             0%, 100% { transform: translateX(0); }
-            20%, 60% { transform: translateX(-7px); }
-            40%, 80% { transform: translateX(7px); }
+            20%, 60% { transform: translateX(-5px); }
+            40%, 80% { transform: translateX(5px); }
         }
         @keyframes anim-flash {
             0%, 100% { opacity: 1; filter: brightness(1); }
-            50% { opacity: 0.65; filter: brightness(1.6); }
+            50% { opacity: 0.75; filter: brightness(1.45); }
         }
 
         .move-pulse-once { animation: anim-pulse 1.2s ease-in-out 2; }
@@ -102,207 +92,456 @@
         .move-shake-once { animation: anim-shake 0.5s ease-in-out 3; }
         .move-flash-once { animation: anim-flash 0.7s ease-in-out 3; }
 
-        .move-pulse-loop { animation: anim-pulse 1.5s ease-in-out infinite; }
-        .move-bounce-loop { animation: anim-bounce 0.85s ease-in-out infinite; }
-        .move-shake-loop { animation: anim-shake 0.75s ease-in-out infinite; }
-        .move-flash-loop { animation: anim-flash 0.85s ease-in-out infinite; }
+        .move-pulse-loop { animation: anim-pulse 1.6s ease-in-out infinite; }
+        .move-bounce-loop { animation: anim-bounce 0.9s ease-in-out infinite; }
+        .move-shake-loop { animation: anim-shake 0.8s ease-in-out infinite; }
+        .move-flash-loop { animation: anim-flash 0.9s ease-in-out infinite; }
 
-        ::-webkit-scrollbar { width: 5px; }
-        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar { width: 5px; height: 5px; }
+        ::-webkit-scrollbar-track { background: #070709; }
         ::-webkit-scrollbar-thumb { background: #272730; border-radius: 2px; }
     </style>
 </head>
-<body class="h-screen overflow-hidden">
-<div id="app"
-     :style="{ '--terminal-accent': terminalColor }"
-     class="h-screen flex flex-col overflow-hidden relative">
-
-    <!-- 1. BASE STATION STATUS RING OVERLAY -->
-    <div v-if="masterSignal === 'standby' || masterSignal === 'go'"
-         :class="{
-             'signal-standby-ring': masterSignal === 'standby',
-             'signal-go-ring': masterSignal === 'go'
-         }"
-         class="fixed inset-0 pointer-events-none z-40 transition-all duration-300"></div>
-
-    <!-- 2. BREATHE RED FULL-SCREEN VIGNETTE OVERLAY (Now works anytime toggled!) -->
-    <div v-if="isBreathing"
-         class="fixed inset-0 pointer-events-none z-50 border-4 breathe-overlay-active"></div>
-
-    <!-- 3. SCREEN FLASH STROBE OVERLAY -->
-    <div v-if="isScreenFlashing"
-         :style="{
-             boxShadow: 'inset 0 0 180px ' + flashColor,
-             backgroundColor: flashColor + '35',
-             borderColor: flashColor
-         }"
-         class="fixed inset-0 pointer-events-none z-50 border-8 flash-overlay-active"></div>
-
-    <!-- FREE TIER WATERMARK -->
-    <div v-if="tier !== 'pro'" class="fixed inset-0 pointer-events-none z-[9999] overflow-hidden flex items-center justify-center opacity-[0.025]">
-        <div class="transform -rotate-45 text-[9vw] font-black tracking-widest text-white whitespace-nowrap select-none">
-            SIGNALCO LITE
-        </div>
-    </div>
+<body id="app" class="h-screen flex flex-col overflow-hidden" :style="{ '--master-accent': config.master_color || '#8b55d6' }">
 
     <!-- HEADER -->
-    <header class="px-6 py-3.5 border-b flex flex-wrap justify-between items-center gap-3 z-20 shrink-0"
-            :style="{ backgroundColor: 'var(--bg-panel)', borderBottomColor: terminalColor + '50' }">
+    <header class="panel border-b px-6 py-3.5 flex justify-between items-center z-20 shrink-0"
+            :style="{ borderBottomColor: (config.master_color || '#8b55d6') + '40' }">
         <div class="flex items-center gap-3">
-            <span class="w-2.5 h-2.5 rounded-full"
-                  :style="{ backgroundColor: terminalColor, boxShadow: '0 0 8px ' + terminalColor }"></span>
-            <h1 class="text-lg font-extrabold tracking-wider uppercase" :style="{ color: terminalColor }">
-                {{ myName }}
+            <span class="w-2.5 h-2.5 rounded-full shadow-sm"
+                  :style="{ backgroundColor: config.master_color || '#8b55d6', boxShadow: '0 0 8px ' + (config.master_color || '#8b55d6') }"></span>
+            <h1 class="text-lg font-extrabold tracking-widest uppercase text-white">
+                Signal<span :style="{ color: config.master_color || '#8b55d6' }">Co</span>
+                <span class="text-zinc-600 font-normal mx-1">//</span>
+                <span class="text-sm font-semibold text-zinc-300">Master Control</span>
             </h1>
         </div>
 
-        <div class="flex items-center gap-3 flex-wrap">
-            <div v-if="masterSignal === 'standby'"
-                 class="px-3.5 py-1 rounded bg-amber-500/20 text-amber-300 border border-amber-500 text-xs font-bold animate-pulse tracking-widest uppercase">
-                Base Station Not Active
-            </div>
-            <div v-if="masterSignal === 'go'"
-                 class="px-3.5 py-1 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500 text-xs font-bold tracking-widest uppercase">
-                Base Station Active
-            </div>
+        <div class="flex items-center gap-3">
+            <!-- 1-CLICK PRO UNLOCK BADGE -->
+            <button @click="toggleProOverride"
+                    :class="tier === 'pro'
+                        ? 'border-emerald-500/40 bg-emerald-950/30 text-emerald-400 hover:bg-emerald-900/40'
+                        : 'border-amber-800/60 bg-amber-950/30 text-amber-400 hover:bg-amber-900/40'"
+                    class="text-[11px] font-bold uppercase tracking-wider border px-3 py-1.5 rounded transition-colors cursor-pointer">
+                <span v-if="tier === 'pro'">Pro License Active</span>
+                <span v-else>Free Tier &mdash; Click to Unlock Pro</span>
+            </button>
 
-            <!-- Local Terminal Text Size Quick Toggle -->
-            <div class="flex items-center bg-black border border-zinc-800 rounded p-0.5">
-                <button v-for="sz in fontSizeOptions" :key="sz.id"
-                        @click="localFontOverride = sz.id"
-                        :style="activeFontSize === sz.id ? { backgroundColor: terminalColor } : {}"
-                        :class="activeFontSize === sz.id ? 'text-white font-bold' : 'text-zinc-500 hover:text-zinc-300'"
-                        class="px-2 py-1 rounded text-[10px] uppercase transition-all"
-                        :title="'Text size: ' + sz.label">
-                    {{ sz.short }}
-                </button>
-            </div>
-
-            <div class="flex items-center gap-3 text-xs font-mono text-zinc-400 bg-black px-3.5 py-1.5 rounded border border-zinc-800">
-                <span>ID: {{ terminalId }}</span>
-                <span class="text-zinc-700">|</span>
-                <span class="text-zinc-200">{{ clock }}</span>
+            <div class="input-well px-3 py-1.5 rounded text-xs font-mono text-zinc-300">
+                {{ clock }}
             </div>
         </div>
     </header>
 
-    <!-- PINNED BANNER -->
-    <div v-if="pinnedMessage"
-         class="bg-purple-950/40 border-b border-purple-500/50 text-purple-200 px-6 py-2.5 text-sm font-medium text-center z-20 shrink-0">
-        📌 <strong>Pinned:</strong> {{ pinnedMessage }}
-    </div>
+    <!-- MAIN GRID -->
+    <main class="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-5 p-5 overflow-hidden">
 
-    <!-- CHAT FEED -->
-    <main class="flex-1 overflow-y-auto p-6 relative z-10" id="chatContainer">
-        <div class="max-w-5xl mx-auto space-y-5">
-            <div v-for="msg in visibleMessages" :key="msg.id"
-                 class="flex flex-col max-w-[92%]"
-                 :class="isMyMessage(msg) ? 'ml-auto items-end' : 'items-start'">
+        <!-- LEFT COLUMN: CONTROLS (5 COLS) -->
+        <div class="lg:col-span-5 flex flex-col gap-4 overflow-y-auto pr-1 pb-6">
 
-                <!-- SENDER, DIRECT BADGE & TIME -->
-                <div class="flex flex-wrap items-center gap-2 mb-1" :class="isMyMessage(msg) ? 'flex-row-reverse' : ''">
-                    <span class="text-[11px] font-bold"
-                          :style="isMyMessage(msg) ? { color: terminalColor } : (msg.sender === 'MASTER CONTROL' ? { color: masterColor } : {})"
-                          :class="(!isMyMessage(msg) && msg.sender !== 'MASTER CONTROL') ? 'text-zinc-400' : ''">
-                        {{ msg.sender }}
-                    </span>
+            <!-- GLOBAL SHOW CUES -->
+            <section class="card rounded-lg p-4">
+                <h2 class="text-xs font-bold text-zinc-400 uppercase tracking-widest mb-3 pb-2 border-b border-zinc-800/80">
+                    Global Show Cues
+                </h2>
+                <div class="grid grid-cols-3 gap-2.5">
+                    <button @click="setMasterSignal('clear')"
+                            :class="config.master_signal === 'clear'
+                                ? 'border-zinc-400 bg-zinc-800 text-white'
+                                : 'text-zinc-400 hover:text-zinc-200 hover:border-zinc-700'"
+                            class="cue-btn rounded px-2 py-3 font-bold text-[11px] leading-tight tracking-wider uppercase">
+                        Clear
+                    </button>
 
-                    <span v-if="msg.target && String(msg.target) === String(terminalId)"
-                          class="text-[10px] font-semibold bg-purple-950/80 text-purple-300 border border-purple-700/60 px-1.5 py-0.5 rounded">
-                        Direct to You
-                    </span>
+                    <button @click="setMasterSignal('standby')"
+                            :class="config.master_signal === 'standby'
+                                ? 'border-amber-500 bg-amber-600/20 text-amber-300 animate-pulse shadow-[0_0_15px_rgba(245,158,11,0.2)]'
+                                : 'text-amber-500/80 hover:text-amber-400 hover:border-amber-900/60'"
+                            class="cue-btn rounded px-2 py-3 font-bold text-[11px] leading-tight tracking-wider uppercase">
+                        Base Station Not Active
+                    </button>
 
-                    <span class="text-[10px] font-mono text-zinc-600">
-                        {{ formatTime(msg.timestamp) }}
-                    </span>
-
-                    <span v-if="msg.urgent"
-                          class="text-[9px] uppercase font-bold tracking-widest text-red-400 bg-red-950/70 px-1.5 py-0.5 rounded border border-red-800">
-                        Priority
-                    </span>
+                    <button @click="setMasterSignal('go')"
+                            :class="config.master_signal === 'go'
+                                ? 'border-emerald-500 bg-emerald-600/20 text-emerald-300 shadow-[0_0_15px_rgba(16,185,129,0.25)]'
+                                : 'text-emerald-500/80 hover:text-emerald-400 hover:border-emerald-900/60'"
+                            class="cue-btn rounded px-2 py-3 font-bold text-[11px] leading-tight tracking-wider uppercase">
+                        Base Station Active
+                    </button>
                 </div>
+            </section>
 
-                <!-- MESSAGE BUBBLE + MESSAGE ACKNOWLEDGED BUTTON -->
-                <div class="px-5 py-4 rounded-lg border flex flex-wrap items-center justify-between gap-4 transition-all"
-                     :style="getCustomBubbleStyle(msg)"
-                     :class="[
-                         fontSizeClass,
-                         getMessageColorClass(msg),
-                         getTerminalAnimationClass(msg),
-                         isMyMessage(msg) ? 'rounded-tr-none' : 'rounded-tl-none'
-                     ]">
-                    <span class="break-words">{{ msg.text }}</span>
+            <!-- VISUALS, COLOURS & MOVEMENT -->
+            <section class="card rounded-lg p-4">
+                <h2 class="text-xs font-bold text-zinc-400 uppercase tracking-widest mb-3 pb-2 border-b border-zinc-800/80">
+                    Visuals, Colours &amp; Movement
+                </h2>
 
-                    <button v-if="terminalReadReceipts && !isMyMessage(msg)"
-                            @click="acknowledgeMessage(msg)"
-                            :disabled="isAckedByMe(msg)"
-                            :class="isAckedByMe(msg)
-                                ? 'bg-emerald-950/60 border-emerald-700/60 text-emerald-300 cursor-default'
-                                : 'bg-zinc-900/90 hover:bg-zinc-800 text-white border-white/30 cursor-pointer active:scale-95 shadow-md'"
-                            class="shrink-0 text-xs font-semibold px-3.5 py-2 rounded border transition-all">
-                        <span v-if="isAckedByMe(msg)">✓ Message acknowledged</span>
-                        <span v-else>Message acknowledged</span>
+                <div class="space-y-3.5">
+                    <!-- Colour Pickers: Master & Terminal -->
+                    <div class="grid grid-cols-2 gap-3">
+                        <div class="input-well p-2.5 rounded">
+                            <div class="flex justify-between items-center mb-1.5">
+                                <span class="text-[11px] font-bold text-zinc-300">Master Colour</span>
+                                <input type="color" v-model="config.master_color" @input="updateConfig"
+                                       class="w-5 h-5 rounded bg-transparent border-0 cursor-pointer">
+                            </div>
+                            <div class="flex gap-1.5">
+                                <button v-for="c in colorSwatches" :key="'m-'+c"
+                                        @click="config.master_color = c; updateConfig()"
+                                        :style="{ backgroundColor: c }"
+                                        :class="config.master_color === c ? 'ring-2 ring-white scale-110' : 'opacity-70 hover:opacity-100'"
+                                        class="w-4 h-4 rounded-full transition-all"></button>
+                            </div>
+                        </div>
+
+                        <div class="input-well p-2.5 rounded">
+                            <div class="flex justify-between items-center mb-1.5">
+                                <span class="text-[11px] font-bold text-zinc-300">Terminal Colour</span>
+                                <input type="color" v-model="config.terminal_color" @input="updateConfig"
+                                       class="w-5 h-5 rounded bg-transparent border-0 cursor-pointer">
+                            </div>
+                            <div class="flex gap-1.5">
+                                <button v-for="c in colorSwatches" :key="'t-'+c"
+                                        @click="config.terminal_color = c; updateConfig()"
+                                        :style="{ backgroundColor: c }"
+                                        :class="config.terminal_color === c ? 'ring-2 ring-white scale-110' : 'opacity-70 hover:opacity-100'"
+                                        class="w-4 h-4 rounded-full transition-all"></button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Font Size & Movement Dropdowns -->
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-[11px] font-medium text-zinc-400 mb-1">Message Font Size</label>
+                            <select v-model="config.font_size" @change="updateConfig"
+                                    class="w-full input-well rounded px-2.5 py-2 text-xs text-white focus:outline-none">
+                                <option value="sm">Normal</option>
+                                <option value="md">Large</option>
+                                <option value="lg">Extra Large</option>
+                                <option value="xl">Giant (Stage View)</option>
+                            </select>
+                        </div>
+
+                        <div>
+                            <label class="block text-[11px] font-medium text-zinc-400 mb-1">Message Movement</label>
+                            <select v-model="config.msg_animation" @change="updateConfig"
+                                    class="w-full input-well rounded px-2.5 py-2 text-xs text-white focus:outline-none">
+                                <option value="none">None (Static)</option>
+                                <option value="pulse">Pulse Glow</option>
+                                <option value="bounce">Bounce</option>
+                                <option value="shake">Attention Shake</option>
+                                <option value="flash">High-Vis Flash</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Attention & Alert Toggles -->
+                    <div class="grid grid-cols-2 gap-2.5">
+                        <label class="input-well p-2.5 rounded flex items-center justify-between cursor-pointer hover:border-zinc-700 transition-colors"
+                               :class="config.loop_until_ack ? 'border-purple-500/50 bg-purple-950/15' : ''">
+                            <div>
+                                <span class="text-[11px] font-bold block text-zinc-200">Move Until Read</span>
+                                <span class="text-[10px] text-zinc-500">Stops when acknowledged</span>
+                            </div>
+                            <input type="checkbox" v-model="config.loop_until_ack" @change="updateConfig" class="w-4 h-4 accent-purple-500 cursor-pointer">
+                        </label>
+
+                        <label class="input-well p-2.5 rounded flex items-center justify-between cursor-pointer hover:border-zinc-700 transition-colors"
+                               :class="config.screen_flash_on_msg ? 'border-cyan-500/50 bg-cyan-950/15' : ''">
+                            <div>
+                                <span class="text-[11px] font-bold block text-zinc-200">Screen Flash</span>
+                                <span class="text-[10px] text-zinc-500">Flash terminal on new msg</span>
+                            </div>
+                            <input type="checkbox" v-model="config.screen_flash_on_msg" @change="updateConfig" class="w-4 h-4 accent-cyan-500 cursor-pointer">
+                        </label>
+
+                        <label class="input-well p-2.5 rounded flex items-center justify-between cursor-pointer hover:border-zinc-700 transition-colors"
+                               :class="config.sound_alerts ? 'border-emerald-500/50 bg-emerald-950/15' : ''">
+                            <div>
+                                <span class="text-[11px] font-bold block text-zinc-200">Audio Chime</span>
+                                <span class="text-[10px] text-zinc-500">Beep terminal on new msg</span>
+                            </div>
+                            <input type="checkbox" v-model="config.sound_alerts" @change="updateConfig" class="w-4 h-4 accent-emerald-500 cursor-pointer">
+                        </label>
+
+                        <label class="input-well p-2.5 rounded flex items-center justify-between cursor-pointer hover:border-orange-900/60 transition-colors"
+                               :class="config.breathe_red ? 'border-orange-500/60 bg-orange-950/15' : ''">
+                            <div>
+                                <span class="text-[11px] font-bold block" :class="config.breathe_red ? 'text-orange-400' : 'text-zinc-200'">Breathe Red</span>
+                                <span class="text-[10px] text-zinc-500">Continuous edge pulse</span>
+                            </div>
+                            <input type="checkbox" v-model="config.breathe_red" @change="updateConfig" class="w-4 h-4 accent-orange-500 cursor-pointer">
+                        </label>
+                    </div>
+                </div>
+            </section>
+
+            <!-- CONTROLS & READ RECEIPTS -->
+            <section class="card rounded-lg p-4">
+                <h2 class="text-xs font-bold text-zinc-400 uppercase tracking-widest mb-3 pb-2 border-b border-zinc-800/80">
+                    Controls &amp; Read Receipts
+                </h2>
+                <div class="space-y-2.5">
+                    <div class="grid grid-cols-2 gap-2.5">
+                        <!-- Terminal Read Receipts -->
+                        <label class="input-well p-2.5 rounded flex items-center justify-between cursor-pointer hover:border-emerald-900/60 transition-colors"
+                               :class="config.terminal_read_receipts ? 'border-emerald-600/50 bg-emerald-950/15' : ''">
+                            <div>
+                                <span class="text-[11px] font-bold block" :class="config.terminal_read_receipts ? 'text-emerald-400' : 'text-zinc-200'">Terminal Read Button</span>
+                                <span class="text-[10px] text-zinc-500">Show on terminals</span>
+                            </div>
+                            <input type="checkbox" v-model="config.terminal_read_receipts" @change="updateConfig" class="w-4 h-4 accent-emerald-500 cursor-pointer">
+                        </label>
+
+                        <!-- Master Read Receipts -->
+                        <label class="input-well p-2.5 rounded flex items-center justify-between cursor-pointer hover:border-emerald-900/60 transition-colors"
+                               :class="config.master_read_receipts ? 'border-emerald-600/50 bg-emerald-950/15' : ''">
+                            <div>
+                                <span class="text-[11px] font-bold block" :class="config.master_read_receipts ? 'text-emerald-400' : 'text-zinc-200'">Master Read Button</span>
+                                <span class="text-[10px] text-zinc-500">Show on Master Control</span>
+                            </div>
+                            <input type="checkbox" v-model="config.master_read_receipts" @change="updateConfig" class="w-4 h-4 accent-emerald-500 cursor-pointer">
+                        </label>
+                    </div>
+
+                    <!-- Lock Chat -->
+                    <label class="input-well p-2.5 rounded flex items-center justify-between cursor-pointer hover:border-red-900/60 transition-colors"
+                           :class="config.chat_locked ? 'border-red-600/60 bg-red-950/15' : ''">
+                        <div>
+                            <span class="text-xs font-bold block" :class="config.chat_locked ? 'text-red-400' : 'text-zinc-200'">Lock Terminal Chat Input</span>
+                            <span class="text-[10px] text-zinc-500">Disable terminals from typing replies</span>
+                        </div>
+                        <input type="checkbox" v-model="config.chat_locked" @change="updateConfig" class="w-4 h-4 accent-red-600 cursor-pointer">
+                    </label>
+
+                    <!-- Pinned Message -->
+                    <div>
+                        <label class="block text-[11px] font-medium text-zinc-400 mb-1">Pin Announcement to Top</label>
+                        <div class="flex gap-2">
+                            <input type="text" v-model="config.pinned_message" @input="updateConfig"
+                                   placeholder="Type global alert (e.g. Next briefing in 10 mins)..."
+                                   class="flex-1 input-well rounded px-3 py-2 text-xs text-white focus:outline-none focus:border-purple-500">
+                            <button v-if="config.pinned_message" @click="clearPinnedMessage"
+                                    class="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs px-3 rounded border border-zinc-700">
+                                Clear
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- TERMINALS -->
+            <section class="card rounded-lg p-4 flex-1 flex flex-col min-h-[220px]">
+                <div class="flex justify-between items-center mb-3 pb-2 border-b border-zinc-800/80">
+                    <h2 class="text-xs font-bold text-zinc-400 uppercase tracking-widest">
+                        Terminals ({{ terminalCount }})
+                    </h2>
+
+                    <button @click="addTerminal"
+                            :disabled="tier !== 'pro' && terminalCount >= 1"
+                            :style="(tier === 'pro' || terminalCount < 1) ? { backgroundColor: config.master_color || '#8b55d6' } : {}"
+                            :class="(tier !== 'pro' && terminalCount >= 1)
+                                ? 'bg-zinc-900 text-zinc-600 border-zinc-800 cursor-not-allowed'
+                                : 'text-white hover:opacity-90 border-white/20'"
+                            class="text-xs font-bold py-1.5 px-3 rounded border transition-all">
+                        + Add Terminal
                     </button>
                 </div>
 
-                <!-- SHARED ACKNOWLEDGED RECEIPTS -->
-                <div v-if="getAckList(msg).length > 0"
-                     class="mt-1.5 flex flex-wrap items-center gap-1.5"
-                     :class="isMyMessage(msg) ? 'justify-end' : 'justify-start'">
-                    <span v-for="ack in getAckList(msg)" :key="ack.id"
-                          class="text-[11px] bg-emerald-950/40 border border-emerald-800/50 text-emerald-300 px-2 py-0.5 rounded">
-                        ✓ Message acknowledged ({{ ack.name }})
+                <div class="space-y-2 overflow-y-auto flex-1 pr-1">
+                    <div v-for="(name, id) in config.terminals" :key="id"
+                         class="input-well p-2 rounded flex items-center gap-2.5">
+                        <div class="bg-zinc-900 text-xs font-mono px-2 py-1 rounded text-zinc-400 border border-zinc-800 shrink-0">
+                            ID {{ id }}
+                        </div>
+
+                        <input type="text" v-model="config.terminals[id]" @input="updateConfig"
+                               placeholder="Terminal Name"
+                               :disabled="tier !== 'pro'"
+                               :class="tier !== 'pro' ? 'text-zinc-500 cursor-not-allowed' : 'text-white focus:border-purple-500'"
+                               class="flex-1 bg-transparent border-b border-zinc-800 px-2 py-1 text-sm focus:outline-none transition-colors">
+
+                        <button @click="targetTerminal = String(id)"
+                                :class="targetTerminal === String(id) ? 'bg-purple-900/60 border-purple-400 text-purple-200' : 'bg-zinc-900 hover:bg-zinc-800 text-zinc-400 border-zinc-800'"
+                                class="text-xs px-2 py-1.5 rounded border transition-all shrink-0"
+                                title="Message this terminal directly">
+                            Message
+                        </button>
+
+                        <button @click="copyTerminalUrl(id)"
+                                :class="copiedId === id ? 'bg-emerald-950/60 border-emerald-500/60 text-emerald-300' : 'bg-zinc-900 hover:bg-zinc-800 text-zinc-300 border-zinc-800'"
+                                class="text-xs px-2.5 py-1.5 rounded border transition-all shrink-0"
+                                title="Copy Terminal Link">
+                            <span v-if="copiedId === id">Copied ✓</span>
+                            <span v-else>Copy Link</span>
+                        </button>
+
+                        <button @click="removeTerminal(id)"
+                                class="text-zinc-500 hover:text-red-400 hover:bg-red-950/40 px-2 py-1 rounded text-xs transition-colors"
+                                title="Delete Terminal">
+                            ✕
+                        </button>
+                    </div>
+
+                    <div v-if="terminalCount === 0" class="text-zinc-600 text-center py-8 text-xs uppercase tracking-widest">
+                        No Terminals Added
+                    </div>
+                </div>
+            </section>
+        </div>
+
+        <!-- RIGHT COLUMN: MASTER CHAT (7 COLS) -->
+        <div class="lg:col-span-7 card rounded-lg flex flex-col overflow-hidden h-full">
+
+            <div class="bg-black/50 px-5 py-3.5 border-b border-zinc-800/80 flex justify-between items-center shrink-0">
+                <div class="flex items-center gap-3">
+                    <h2 class="text-xs font-bold text-zinc-300 uppercase tracking-widest">
+                        Comms Feed
+                    </h2>
+                    <span class="text-[11px] text-zinc-500 font-mono">
+                        Font: {{ fontSizeLabel }} | Movement: {{ config.msg_animation || 'none' }}
                     </span>
+                </div>
+                <button @click="clearMessages"
+                        class="text-[11px] text-red-400 hover:text-red-300 uppercase tracking-wider bg-red-950/30 hover:bg-red-950/50 px-2.5 py-1 rounded border border-red-900/50 transition-colors">
+                    Clear History
+                </button>
+            </div>
+
+            <!-- CHAT FEED -->
+            <div class="flex-1 overflow-y-auto p-5 space-y-4 bg-[#060608]" id="chatContainer">
+                <div v-if="config.pinned_message"
+                     class="bg-purple-950/30 border border-purple-500/50 rounded p-3 text-xs text-purple-200 flex justify-between items-center">
+                    <span>📌 <strong>Pinned:</strong> {{ config.pinned_message }}</span>
+                </div>
+
+                <div v-for="msg in messages" :key="msg.id"
+                     class="flex flex-col max-w-[88%]"
+                     :class="msg.sender === adminName ? 'ml-auto items-end' : 'items-start'">
+
+                    <!-- SENDER, TARGET & TIME -->
+                    <div class="flex flex-wrap items-center gap-2 mb-1" :class="msg.sender === adminName ? 'flex-row-reverse' : ''">
+                        <span class="text-[11px] font-bold"
+                              :style="msg.sender === adminName ? { color: config.master_color || '#8b55d6' } : {}"
+                              :class="msg.sender !== adminName ? 'text-zinc-300' : ''">
+                            {{ msg.sender }}
+                        </span>
+
+                        <!-- RECIPIENT BADGE -->
+                        <span v-if="msg.target && msg.target !== 'all'"
+                              class="text-[10px] font-semibold bg-purple-950/80 text-purple-300 border border-purple-700/60 px-1.5 py-0.5 rounded">
+                            → Direct: {{ getTerminalName(msg.target, msg.targetName) }}
+                        </span>
+                        <span v-else-if="msg.sender === adminName"
+                              class="text-[10px] text-zinc-500 bg-zinc-900 px-1.5 py-0.5 rounded border border-zinc-800">
+                            → All Terminals
+                        </span>
+
+                        <span class="text-[10px] font-mono text-zinc-600">
+                            {{ formatTime(msg.timestamp) }}
+                        </span>
+
+                        <span v-if="msg.urgent"
+                              class="text-[9px] uppercase font-bold tracking-widest text-red-400 bg-red-950/60 px-1.5 py-0.5 rounded border border-red-800">
+                            Priority
+                        </span>
+                    </div>
+
+                    <!-- MESSAGE BUBBLE -->
+                    <div class="px-4 py-3 rounded-lg border leading-relaxed flex flex-wrap items-center justify-between gap-4 transition-all"
+                         :style="getCustomBubbleStyle(msg)"
+                         :class="[
+                             fontSizeClass,
+                             getMessageColorClass(msg),
+                             getMasterAnimationClass(msg),
+                             msg.sender === adminName ? 'rounded-tr-none' : 'rounded-tl-none'
+                         ]">
+                        <span class="break-words font-medium">{{ msg.text }}</span>
+
+                        <button v-if="config.master_read_receipts && msg.sender !== adminName"
+                                @click="acknowledgeMessage(msg)"
+                                :disabled="isAckedByMaster(msg)"
+                                :class="isAckedByMaster(msg)
+                                    ? 'bg-emerald-950/60 border-emerald-700/60 text-emerald-300 cursor-default'
+                                    : 'bg-zinc-800 hover:bg-zinc-700 text-white border-zinc-600 cursor-pointer active:scale-95'"
+                                class="shrink-0 text-xs font-semibold px-3 py-1.5 rounded border transition-all">
+                            <span v-if="isAckedByMaster(msg)">✓ Message acknowledged</span>
+                            <span v-else>Message acknowledged</span>
+                        </button>
+                    </div>
+
+                    <!-- ACKNOWLEDGED RECEIPTS -->
+                    <div v-if="getAckList(msg).length > 0"
+                         class="mt-1.5 flex flex-wrap items-center gap-1.5"
+                         :class="msg.sender === adminName ? 'justify-end' : 'justify-start'">
+                        <span v-for="ack in getAckList(msg)" :key="ack.id"
+                              class="text-[11px] bg-emerald-950/50 border border-emerald-700/50 text-emerald-300 px-2 py-0.5 rounded flex items-center gap-1"
+                              :title="formatTime(ack.timestamp)">
+                            ✓ Message acknowledged ({{ ack.name }})
+                        </span>
+                    </div>
+                </div>
+
+                <div v-if="messages.length === 0" class="h-full flex items-center justify-center text-zinc-600 text-xs uppercase tracking-widest py-16">
+                    No messages yet
                 </div>
             </div>
 
-            <div v-if="visibleMessages.length === 0" class="text-center text-zinc-600 mt-20 text-xs uppercase tracking-widest">
-                No messages yet
+            <!-- CHAT INPUT & DIRECT MESSAGE BAR -->
+            <div class="bg-[#0a0a0d] border-t border-zinc-800/80 p-4 shrink-0">
+                <div class="flex flex-col gap-2.5">
+                    <!-- TOP OPTIONS ROW: DIRECT TARGET, MESSAGE COLOUR, PRIORITY -->
+                    <div class="flex flex-wrap items-center justify-between gap-3">
+                        <div class="flex items-center gap-2">
+                            <label class="text-[11px] font-semibold text-zinc-400 uppercase">Send To:</label>
+                            <select v-model="targetTerminal"
+                                    class="input-well rounded px-2.5 py-1 text-xs text-white font-semibold focus:outline-none focus:border-purple-500">
+                                <option value="all">All Terminals</option>
+                                <option v-for="(name, id) in config.terminals" :key="id" :value="String(id)">
+                                    {{ name }} (ID {{ id }})
+                                </option>
+                            </select>
+                        </div>
+
+                        <!-- Per-Message Highlight Colour Picker -->
+                        <div class="flex items-center gap-1.5">
+                            <span class="text-[11px] text-zinc-400 mr-1">Highlight:</span>
+                            <button v-for="mc in messageColorOptions" :key="mc.id"
+                                    @click="selectedMsgColor = mc.id"
+                                    :class="[
+                                        mc.dotClass,
+                                        selectedMsgColor === mc.id ? 'ring-2 ring-white scale-110' : 'opacity-60 hover:opacity-100'
+                                    ]"
+                                    :title="mc.label"
+                                    class="w-4 h-4 rounded-full transition-all"></button>
+                        </div>
+
+                        <label class="flex items-center gap-2 text-xs cursor-pointer select-none"
+                               :class="tier === 'pro' ? 'text-zinc-400 hover:text-red-400' : 'text-zinc-600 cursor-not-allowed'">
+                            <input type="checkbox" v-model="isUrgent" :disabled="tier !== 'pro'" class="w-3.5 h-3.5 accent-red-600">
+                            <span class="uppercase tracking-wider text-[11px] font-semibold">Flag Priority</span>
+                        </label>
+                    </div>
+
+                    <!-- INPUT & SEND BUTTON -->
+                    <div class="flex gap-2.5">
+                        <input type="text" v-model="draftMessage" @keyup.enter="sendMessage"
+                               :placeholder="targetTerminal === 'all' ? 'Send a message to all terminals...' : 'Send direct message to ' + getTerminalName(targetTerminal) + '...'"
+                               class="flex-1 input-well rounded px-4 py-2.5 text-sm text-white focus:outline-none focus:border-purple-500 transition-colors">
+                        <button @click="sendMessage"
+                                :style="!isUrgent ? { backgroundColor: config.master_color || '#8b55d6' } : {}"
+                                :class="isUrgent ? 'bg-red-600 hover:bg-red-500 text-white' : 'text-white hover:opacity-90'"
+                                class="font-bold px-6 py-2.5 rounded uppercase tracking-wider text-xs transition-all active:scale-95">
+                            Send
+                        </button>
+                    </div>
+                </div>
             </div>
         </div>
     </main>
-
-    <!-- CHAT INPUT -->
-    <footer class="border-t p-4 z-20 shrink-0" style="background-color: var(--bg-panel); border-color: var(--border-subtle);">
-        <div class="max-w-5xl mx-auto flex flex-col gap-2">
-            <div class="flex flex-wrap items-center justify-between gap-2">
-                <!-- Per-Message Highlight Colour Picker -->
-                <div class="flex items-center gap-1.5">
-                    <span class="text-[11px] text-zinc-400 mr-1">Highlight:</span>
-                    <button v-for="mc in messageColorOptions" :key="mc.id"
-                            @click="selectedMsgColor = mc.id"
-                            :disabled="isLocked"
-                            :class="[
-                                mc.dotClass,
-                                selectedMsgColor === mc.id ? 'ring-2 ring-white scale-110' : 'opacity-60 hover:opacity-100'
-                            ]"
-                            :title="mc.label"
-                            class="w-4 h-4 rounded-full transition-all disabled:opacity-20"></button>
-                </div>
-
-                <label class="flex items-center gap-2 text-xs cursor-pointer select-none"
-                       :class="isLocked ? 'opacity-40 cursor-not-allowed text-zinc-600' : 'text-zinc-400 hover:text-red-400'">
-                    <input type="checkbox" v-model="isUrgent" :disabled="isLocked" class="accent-red-600 w-3.5 h-3.5">
-                    <span class="uppercase tracking-wider text-[11px] font-semibold">Flag Priority</span>
-                </label>
-            </div>
-
-            <div class="flex gap-2.5">
-                <input type="text" v-model="draftMessage" @keyup.enter="sendMessage" :disabled="isLocked"
-                       :placeholder="isLocked ? 'Chat locked by Master Control...' : 'Send a message...'"
-                       class="flex-1 bg-[#070709] border border-zinc-800 rounded px-4 py-2.5 text-sm text-white focus:outline-none transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
-                <button @click="sendMessage" :disabled="isLocked"
-                        :style="(!isLocked && !isUrgent) ? { backgroundColor: terminalColor } : {}"
-                        :class="isLocked
-                            ? 'bg-zinc-900 border border-zinc-800 text-zinc-600 cursor-not-allowed'
-                            : (isUrgent ? 'bg-red-600 hover:bg-red-500 text-white' : 'text-white hover:opacity-90')"
-                        class="font-bold px-6 py-2.5 rounded uppercase tracking-wider text-xs transition-all active:scale-95">
-                    Send
-                </button>
-            </div>
-        </div>
-    </footer>
-</div>
 
     <script>
         const firebaseConfig = {
@@ -325,9 +564,9 @@
 
         createApp({
             setup() {
+                const adminName = 'MASTER CONTROL';
                 const urlParams = new URLSearchParams(window.location.search);
                 const eventId = ref(urlParams.get('event') || 'demo_sandbox');
-                const terminalId = ref(urlParams.get('t') || '1');
 
                 const urlProFlag = urlParams.get('pro') === '1' || urlParams.get('tier') === 'pro';
                 const localOverride = ref(urlProFlag || localStorage.getItem(`signalco_pro_${eventId.value}`) === 'true');
@@ -337,38 +576,7 @@
                 const configPath = `events/${eventId.value}/config`;
                 const messagesPath = `events/${eventId.value}/messages`;
 
-                const myName = ref(`Terminal ${terminalId.value}`);
-                const isBreathing = ref(false);
-                const masterSignal = ref('clear');
-                const isLocked = ref(false);
-                const pinnedMessage = ref('');
-                const clock = ref('00:00:00');
-
-                const masterColor = ref('#8b55d6');
-                const terminalColor = ref('#3b82f6');
-                const fontSize = ref('md');
-                const localFontOverride = ref(null);
-                const msgAnimation = ref('pulse');
-                const loopUntilAck = ref(true);
-                const screenFlashOnMsg = ref(true);
-                const soundAlerts = ref(false);
-                const terminalReadReceipts = ref(true);
-
-                const isScreenFlashing = ref(false);
-                const flashColor = ref('#3b82f6');
-
-                const draftMessage = ref('');
-                const isUrgent = ref(false);
-                const selectedMsgColor = ref('default');
-                const messages = ref([]);
-
-                const fontSizeOptions = [
-                    { id: 'sm', short: 'S', label: 'Normal' },
-                    { id: 'md', short: 'M', label: 'Large' },
-                    { id: 'lg', short: 'L', label: 'X-Large' },
-                    { id: 'xl', short: 'XL', label: 'Huge' },
-                    { id: 'xxl', short: 'MAX', label: 'Massive' }
-                ];
+                const colorSwatches = ['#8b55d6', '#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#06b6d4'];
 
                 const messageColorOptions = [
                     { id: 'default', label: 'Station Default', dotClass: 'bg-zinc-500 border border-zinc-300' },
@@ -380,88 +588,84 @@
                     { id: 'cyan', label: 'Cyan', dotClass: 'bg-cyan-500' }
                 ];
 
-                let initialLoad = true;
-                let lastLatestTimestamp = 0;
-                let lastFlashTrigger = null;
+                const config = ref({
+                    terminals: {},
+                    breathe_red: false,
+                    master_signal: 'clear',
+                    chat_locked: false,
+                    master_read_receipts: true,
+                    terminal_read_receipts: true,
+                    pinned_message: '',
+                    master_color: '#8b55d6',
+                    terminal_color: '#3b82f6',
+                    font_size: 'md',
+                    msg_animation: 'pulse',
+                    loop_until_ack: true,
+                    screen_flash_on_msg: false,
+                    sound_alerts: false
+                });
+
+                const draftMessage = ref('');
+                const isUrgent = ref(false);
+                const targetTerminal = ref('all');
+                const selectedMsgColor = ref('default');
+                const messages = ref([]);
+                const copiedId = ref(null);
+                const clock = ref('00:00:00');
+
                 let currentRtdbStatus = 'free';
                 const masterIsPremium = ref(false);
 
-                const visibleMessages = computed(() => {
-                    return messages.value.filter(msg => {
-                        if (!msg.target || msg.target === 'all') return true;
-                        if (String(msg.target) === String(terminalId.value)) return true;
-                        if (String(msg.senderId) === String(terminalId.value) || msg.sender === myName.value) return true;
-                        return false;
-                    });
-                });
-
-                const activeFontSize = computed(() => localFontOverride.value || fontSize.value || 'md');
+                const terminalCount = computed(() => Object.keys(config.value.terminals || {}).length);
 
                 const fontSizeClass = computed(() => {
                     const map = {
-                        sm: 'text-sm leading-relaxed font-medium',
-                        md: 'text-lg leading-snug font-semibold',
-                        lg: 'text-2xl leading-snug font-bold',
-                        xl: 'text-4xl leading-tight font-extrabold tracking-wide',
-                        xxl: 'text-5xl lg:text-6xl leading-none font-black tracking-wide'
+                        sm: 'text-sm',
+                        md: 'text-base',
+                        lg: 'text-xl font-semibold',
+                        xl: 'text-2xl font-bold tracking-wide'
                     };
-                    return map[activeFontSize.value] || map.md;
+                    return map[config.value.font_size] || 'text-base';
                 });
 
-                const isMyMessage = (msg) => {
-                    return String(msg.senderId) === String(terminalId.value) || msg.sender === myName.value;
+                const fontSizeLabel = computed(() => {
+                    const map = { sm: 'Normal', md: 'Large', lg: 'Extra Large', xl: 'Giant' };
+                    return map[config.value.font_size] || 'Large';
+                });
+
+                const getTerminalName = (id, fallbackName) => {
+                    if (id === 'all') return 'All Terminals';
+                    if (config.value.terminals && config.value.terminals[id]) {
+                        return config.value.terminals[id];
+                    }
+                    return fallbackName || `Terminal ${id}`;
                 };
 
                 const getMessageColorClass = (msg) => {
                     if (msg.urgent || msg.color === 'red') return 'msg-color-red';
                     if (msg.color && msg.color !== 'default') return `msg-color-${msg.color}`;
-                    return 'bg-[#0e0e13] border-zinc-800 text-zinc-100';
+                    return 'bg-[#101015] border-zinc-800 text-zinc-100';
                 };
 
                 const getCustomBubbleStyle = (msg) => {
                     if (msg.urgent || (msg.color && msg.color !== 'default')) return {};
-                    const accent = isMyMessage(msg) ? terminalColor.value : masterColor.value;
+                    const accent = msg.sender === adminName
+                        ? (config.value.master_color || '#8b55d6')
+                        : (config.value.terminal_color || '#3b82f6');
                     return {
-                        backgroundColor: accent + '24',
-                        borderColor: accent + '70'
+                        backgroundColor: accent + '22',
+                        borderColor: accent + '66'
                     };
                 };
 
-                const getTerminalAnimationClass = (msg) => {
-                    const anim = msg.effect || msgAnimation.value || 'none';
+                const getMasterAnimationClass = (msg) => {
+                    const anim = msg.effect || config.value.msg_animation || 'none';
                     if (anim === 'none') return '';
-                    if (!isMyMessage(msg) && loopUntilAck.value && !isAckedByMe(msg)) {
+                    // On Master Control, loop unacknowledged incoming messages if loop_until_ack is active
+                    if (msg.sender !== adminName && config.value.loop_until_ack && !isAckedByMaster(msg)) {
                         return `move-${anim}-loop`;
                     }
                     return `move-${anim}-once`;
-                };
-
-                const playAlertChime = (urgent = false) => {
-                    try {
-                        const AudioCtx = window.AudioContext || window.webkitAudioContext;
-                        if (!AudioCtx) return;
-                        const ctx = new AudioCtx();
-                        const osc = ctx.createOscillator();
-                        const gain = ctx.createGain();
-                        osc.type = urgent ? 'sawtooth' : 'sine';
-                        osc.frequency.setValueAtTime(urgent ? 880 : 587.33, ctx.currentTime);
-                        osc.frequency.setValueAtTime(urgent ? 1174.66 : 880, ctx.currentTime + 0.12);
-                        gain.gain.setValueAtTime(0.18, ctx.currentTime);
-                        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.38);
-                        osc.connect(gain);
-                        gain.connect(ctx.destination);
-                        osc.start();
-                        osc.stop(ctx.currentTime + 0.38);
-                    } catch (e) {}
-                };
-
-                const triggerScreenFlash = (customColor = null) => {
-                    flashColor.value = customColor || terminalColor.value || '#3b82f6';
-                    isScreenFlashing.value = false;
-                    setTimeout(() => {
-                        isScreenFlashing.value = true;
-                        setTimeout(() => { isScreenFlashing.value = false; }, 950);
-                    }, 20);
                 };
 
                 const evaluateTier = () => {
@@ -477,6 +681,14 @@
                     }
                 };
 
+                const toggleProOverride = () => {
+                    const targetPro = tier.value !== 'pro';
+                    localOverride.value = targetPro;
+                    localStorage.setItem(`signalco_pro_${eventId.value}`, targetPro ? 'true' : 'false');
+                    db.ref(statusPath).set(targetPro ? 'pro' : 'free').catch(() => {});
+                    evaluateTier();
+                };
+
                 const updateClock = () => {
                     clock.value = new Date().toTimeString().split(' ')[0];
                 };
@@ -486,25 +698,25 @@
                     return new Date(ts).toTimeString().split(' ')[0];
                 };
 
-                const isAckedByMe = (msg) => {
-                    return !!(msg.acks && msg.acks[terminalId.value]);
+                const isAckedByMaster = (msg) => {
+                    return !!(msg.acks && msg.acks['master']);
+                };
+
+                const acknowledgeMessage = (msg) => {
+                    if (!msg.id || isAckedByMaster(msg)) return;
+                    db.ref(`${messagesPath}/${msg.id}/acks/master`).set({
+                        name: adminName,
+                        timestamp: Date.now()
+                    });
                 };
 
                 const getAckList = (msg) => {
                     if (!msg.acks) return [];
                     return Object.entries(msg.acks).map(([id, val]) => ({
                         id,
-                        name: val.name || (id === 'master' ? 'MASTER CONTROL' : `Terminal ${id}`),
+                        name: val.name || (id === 'master' ? adminName : `Terminal ${id}`),
                         timestamp: val.timestamp
                     }));
-                };
-
-                const acknowledgeMessage = (msg) => {
-                    if (!msg.id || isAckedByMe(msg)) return;
-                    db.ref(`${messagesPath}/${msg.id}/acks/${terminalId.value}`).set({
-                        name: myName.value,
-                        timestamp: Date.now()
-                    });
                 };
 
                 const scrollToBottom = () => {
@@ -518,13 +730,17 @@
                     updateClock();
                     setInterval(updateClock, 1000);
 
+                    if (localOverride.value) {
+                        db.ref(statusPath).set('pro').catch(() => {});
+                    }
+
                     auth.onAuthStateChanged(async (user) => {
                         if (user) {
                             try {
                                 const userDoc = await firestore.collection('users').doc(user.uid).get();
                                 masterIsPremium.value = !!(userDoc.exists && userDoc.data().status === 'premium');
                             } catch (err) {
-                                console.error("Firestore verification failed:", err);
+                                console.error("Firestore auth check error:", err);
                             }
                         } else {
                             masterIsPremium.value = false;
@@ -538,107 +754,106 @@
                     });
 
                     db.ref(configPath).on('value', snap => {
-                        const data = snap.val();
-                        if (data) {
-                            if (data.terminals && data.terminals[terminalId.value]) {
-                                myName.value = data.terminals[terminalId.value];
-                            } else {
-                                myName.value = `Terminal ${terminalId.value}`;
-                            }
-
-                            isBreathing.value = !!data.breathe_red;
-                            masterSignal.value = data.master_signal || 'clear';
-                            isLocked.value = !!data.chat_locked;
-                            pinnedMessage.value = data.pinned_message || '';
-
-                            masterColor.value = data.master_color || '#8b55d6';
-                            terminalColor.value = data.terminal_color || '#3b82f6';
-
-                            // When Master changes font size, sync it and reset local override
-                            if (data.font_size && data.font_size !== fontSize.value) {
-                                fontSize.value = data.font_size;
-                                localFontOverride.value = null;
-                            }
-
-                            msgAnimation.value = data.msg_animation || 'pulse';
-                            loopUntilAck.value = data.loop_until_ack !== undefined ? data.loop_until_ack : true;
-                            screenFlashOnMsg.value = data.screen_flash_on_msg !== undefined ? data.screen_flash_on_msg : true;
-                            soundAlerts.value = !!data.sound_alerts;
-                            terminalReadReceipts.value = data.terminal_read_receipts !== undefined ? data.terminal_read_receipts : true;
-
-                            // Handle manual "Flash Now" button from Master Control
-                            if (lastFlashTrigger !== null && data.flash_trigger && data.flash_trigger !== lastFlashTrigger) {
-                                triggerScreenFlash('#22d3ee');
-                            }
-                            lastFlashTrigger = data.flash_trigger || 0;
+                        if (snap.val()) {
+                            config.value = { ...config.value, ...snap.val() };
+                            if (!config.value.terminals) config.value.terminals = {};
                         }
                     });
 
                     db.ref(messagesPath).on('value', snap => {
                         const data = snap.val();
                         if (data) {
-                            const msgArray = Object.entries(data)
+                            messages.value = Object.entries(data)
                                 .map(([id, val]) => ({ id, ...val }))
                                 .sort((a, b) => a.timestamp - b.timestamp);
-
-                            messages.value = msgArray;
-
-                            const currentVisible = visibleMessages.value;
-                            const newestMsg = currentVisible.length > 0 ? currentVisible[currentVisible.length - 1] : null;
-                            const newestTs = newestMsg ? (newestMsg.timestamp || 0) : 0;
-
-                            if (!initialLoad && newestMsg && newestTs > lastLatestTimestamp) {
-                                if (!isMyMessage(newestMsg)) {
-                                    if (screenFlashOnMsg.value || newestMsg.urgent) {
-                                        triggerScreenFlash(newestMsg.urgent ? '#ef4444' : terminalColor.value);
-                                    }
-                                    if (soundAlerts.value) {
-                                        playAlertChime(newestMsg.urgent);
-                                    }
-                                    if (newestMsg.urgent && navigator.vibrate) {
-                                        navigator.vibrate([200, 100, 200]);
-                                    }
-                                }
-                            }
-                            lastLatestTimestamp = newestTs;
-                            initialLoad = false;
                             scrollToBottom();
                         } else {
                             messages.value = [];
-                            lastLatestTimestamp = 0;
-                            initialLoad = false;
                         }
                     });
                 });
 
-                const sendMessage = () => {
-                    if (!draftMessage.value.trim() || isLocked.value) return;
+                const updateConfig = () => db.ref(configPath).set(config.value);
 
+                const copyTerminalUrl = (id) => {
+                    const url = new URL('terminal.html', window.location.href);
+                    url.searchParams.set('event', eventId.value);
+                    url.searchParams.set('t', id);
+                    if (tier.value === 'pro') {
+                        url.searchParams.set('pro', '1');
+                    }
+
+                    navigator.clipboard.writeText(url.href).then(() => {
+                        copiedId.value = id;
+                        setTimeout(() => {
+                            if (copiedId.value === id) copiedId.value = null;
+                        }, 2000);
+                    });
+                };
+
+                const addTerminal = () => {
+                    const currentIds = Object.keys(config.value.terminals || {}).map(Number);
+                    if (tier.value !== 'pro' && currentIds.length >= 1) return;
+
+                    const nextId = currentIds.length > 0 ? Math.max(...currentIds) + 1 : 1;
+                    if (!config.value.terminals) config.value.terminals = {};
+
+                    config.value.terminals[nextId] = `Terminal ${nextId}`;
+                    updateConfig();
+                };
+
+                const removeTerminal = (id) => {
+                    if (targetTerminal.value === String(id)) {
+                        targetTerminal.value = 'all';
+                    }
+                    delete config.value.terminals[id];
+                    updateConfig();
+                };
+
+                const setMasterSignal = (signal) => {
+                    config.value.master_signal = signal;
+                    updateConfig();
+                };
+
+                const clearPinnedMessage = () => {
+                    config.value.pinned_message = '';
+                    updateConfig();
+                };
+
+                const sendMessage = () => {
+                    if (!draftMessage.value.trim()) return;
                     db.ref(messagesPath).push({
-                        sender: myName.value,
-                        senderId: String(terminalId.value),
-                        target: 'all',
-                        targetName: 'Master Control',
+                        sender: adminName,
+                        senderId: 'master',
+                        target: targetTerminal.value,
+                        targetName: getTerminalName(targetTerminal.value),
                         text: draftMessage.value.trim(),
                         timestamp: Date.now(),
                         urgent: isUrgent.value,
                         color: selectedMsgColor.value,
-                        effect: msgAnimation.value || 'none',
+                        effect: config.value.msg_animation || 'none',
                         acks: {}
                     });
-
                     draftMessage.value = '';
                     isUrgent.value = false;
                 };
 
+                const clearMessages = () => {
+                    if (confirm("Clear the entire message history? This cannot be undone.")) {
+                        db.ref(messagesPath).remove();
+                    }
+                };
+
                 return {
-                    eventId, terminalId, tier, myName, isBreathing, masterSignal,
-                    masterColor, terminalColor, fontSizeOptions, activeFontSize, localFontOverride,
-                    fontSizeClass, terminalReadReceipts, isScreenFlashing, flashColor,
-                    messageColorOptions, selectedMsgColor,
-                    draftMessage, isUrgent, visibleMessages, sendMessage, isLocked, pinnedMessage,
-                    clock, formatTime, isMyMessage, isAckedByMe, getAckList, acknowledgeMessage,
-                    getMessageColorClass, getCustomBubbleStyle, getTerminalAnimationClass
+                    config, adminName, eventId, tier, clock, copiedId, terminalCount,
+                    colorSwatches, messageColorOptions, targetTerminal, selectedMsgColor,
+                    fontSizeClass, fontSizeLabel, getTerminalName, getMessageColorClass,
+                    getCustomBubbleStyle, getMasterAnimationClass,
+                    updateConfig, copyTerminalUrl, addTerminal, removeTerminal,
+                    setMasterSignal, clearPinnedMessage, draftMessage, isUrgent,
+                    messages, sendMessage, clearMessages,
+                    toggleProOverride, formatTime, getAckList,
+                    isAckedByMaster, acknowledgeMessage
                 };
             }
         }).mount('#app');
